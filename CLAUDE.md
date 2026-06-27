@@ -1189,11 +1189,11 @@ Login credentials for demo: `admin` / `scaffold2026`
 - **Note:** file/component naming differs from §15's plan — logic is split into `pages/` (routed screens) and `features/` (workspace tabs) rather than flat files, and the API client is `src/api/client.ts` (not `src/api.ts`). `UploadModal` lives inside `features/DocumentsInbox.tsx`.
 - **Verified:** `tsc -b` clean, `eslint` clean, `vite build` succeeds (Tailwind tokens compile). Not yet verified in a real browser with screenshots, and **never tested against the real backend.**
 
-**Frontend go-live checklist (do this as endpoints land):**
+**Frontend go-live checklist (do this once the backend is fully built — see the integration stage in "What's next"):**
 1. Start the backend on `http://localhost:8000`.
 2. Set `VITE_USE_MOCKS=false` (or flip the `USE_MOCKS` default in `client.ts`).
-3. For each newly-built endpoint, confirm the real response matches `src/types/` and the screen renders correctly; fix the type/UI on whichever side is wrong.
-4. Once all endpoints are live and validated, delete `src/api/mockData.ts` and the mock branches + mirrored-logic helpers (`recalcReadiness`, `refreshPropositionStatus`, `finaliseJob`) in `client.ts`.
+3. Walk the app end-to-end and confirm each endpoint's real response matches `src/types/` and the screen renders correctly; fix the type/UI on whichever side is wrong.
+4. Once all endpoints are validated, delete `src/api/mockData.ts` and the mock branches + mirrored-logic helpers (`recalcReadiness`, `refreshPropositionStatus`, `finaliseJob`) in `client.ts`.
 
 ---
 
@@ -1217,8 +1217,35 @@ Login credentials for demo: `admin` / `scaffold2026`
 | **3–4** | Document upload + PDF extraction + LLM analysis | `app/services/pdf.py`, `app/services/doc_analyser.py`, `app/routers/documents.py` |
 | **4–4.5** | Graph CRUD + evidence + gaps | `app/routers/graph.py`, `app/routers/evidence.py`, `app/routers/gaps.py` |
 | **4.5–5** | Readiness + proposition status auto-update | `app/services/readiness.py` |
-| **5–7.5** | **Frontend integration** — the screens already exist as a mock prototype (see "What's done"). Work here is *replacing mocks with real calls*, not building UI: set `VITE_USE_MOCKS=false`, then validate each endpoint against `src/types/` as it comes online (auth → cases → articles/build → documents/analysis → graph/evidence/gaps). Fix contract mismatches on whichever side is wrong; delete `mockData.ts` + mock branches when done. | `frontend/src/api/client.ts`, `src/types/`, `pages/*`, `features/*` |
+| **5–7.5** | **Frontend integration** — see dedicated stage below. | `frontend/src/api/client.ts`, `src/types/`, `pages/*`, `features/*` |
 | **7.5–8** | End-to-end test against the live backend, fix blockers | — |
+
+---
+
+### Frontend integration stage (after the backend is fully built)
+
+The screens already exist as a mock prototype (see "What's done"). **Integration
+is a single phase that happens once the backend is complete** — i.e. after all
+routes in §7 are implemented and the rest of §18 is done. It is *not* done
+incrementally during the backend build; the prototype stays fully mocked until
+then. This stage is about *replacing mocks with real calls*, not building UI.
+
+Because every endpoint exists by this point, the global `USE_MOCKS` flag is all
+that's needed (no per-method switching):
+
+1. Bring up the backend (Postgres running, schema applied, user seeded, `uvicorn`
+   on `:8000`).
+2. Set `VITE_USE_MOCKS=false` (or flip the `USE_MOCKS` default in
+   `src/api/client.ts`). Every `api.*` method already contains the real `fetch`
+   against the documented route.
+3. Walk the app end-to-end and validate each screen against its endpoint, in
+   dependency order: auth → cases CRUD → jobs polling → articles/graph build →
+   documents/analysis → evidence/gaps. For each, confirm the real response
+   matches `src/types/` and the screen renders; fix the contract on whichever
+   side is wrong.
+4. Once validated, set the default to live and delete `mockData.ts` plus the mock
+   branches + mirrored-logic helpers (`recalcReadiness`,
+   `refreshPropositionStatus`, `finaliseJob`) from `client.ts`.
 
 ---
 
