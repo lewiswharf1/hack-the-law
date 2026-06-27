@@ -16,12 +16,15 @@ export default function GapsPanel({
   gaps,
   caseId,
   onChanged,
+  editMode = false,
 }: {
   gaps: Gap[]
   caseId: string
   onChanged: () => void
+  editMode?: boolean
 }) {
   const [showNew, setShowNew] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const open = gaps.filter((g) => g.status === "open")
   const resolved = gaps.filter((g) => g.status === "resolved")
 
@@ -32,6 +35,18 @@ export default function GapsPanel({
   async function changeSeverity(gap: Gap, severity: GapSeverity) {
     await api.updateGap(gap.id, { severity })
     onChanged()
+  }
+  async function deleteGap(gap: Gap) {
+    if (!window.confirm(`Delete gap "${gap.title}"?`)) return
+    try {
+      setDeleting(gap.id)
+      await api.deleteGap(gap.id)
+      onChanged()
+    } catch (e) {
+      alert(`Error: ${e instanceof Error ? e.message : "Unknown error"}`)
+    } finally {
+      setDeleting(null)
+    }
   }
 
   return (
@@ -80,6 +95,16 @@ export default function GapsPanel({
               <Button variant="small" onClick={() => resolve(g)}>
                 Mark resolved
               </Button>
+              {editMode && (
+                <button
+                  onClick={() => deleteGap(g)}
+                  className="text-xs text-muted hover:text-error transition-colors px-2 py-1 ml-auto"
+                  title="Delete"
+                  disabled={deleting === g.id}
+                >
+                  {deleting === g.id ? "…" : "🗑 Delete"}
+                </button>
+              )}
             </div>
           </Card>
         ))}

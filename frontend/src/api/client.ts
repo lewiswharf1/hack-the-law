@@ -19,12 +19,16 @@ import type {
   CaseSummary,
   DocumentDetail,
   DocumentItem,
+  Element,
+  ElementStatus,
   Evidence,
   EvidenceClassification,
   Gap,
   GraphResponse,
   JobStatus,
   NewCaseDetails,
+  Proposition,
+  PropositionStatus,
 } from "../types"
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api"
@@ -97,6 +101,44 @@ export const api = {
     return request("GET", `/cases/${caseId}/graph`)
   },
 
+  // ── Elements (CRUD) ────────────────────────────────────────────────────────
+  createElement(
+    caseId: string,
+    body: { label: string; title: string; source: string },
+  ): Promise<Element> {
+    return request("POST", `/cases/${caseId}/elements`, body)
+  },
+
+  updateElement(
+    elementId: string,
+    body: Partial<{ title: string; status: ElementStatus; source: string }>,
+  ): Promise<Element> {
+    return request("PUT", `/elements/${elementId}`, body)
+  },
+
+  deleteElement(elementId: string): Promise<{ ok: boolean }> {
+    return request("DELETE", `/elements/${elementId}`)
+  },
+
+  // ── Propositions (CRUD) ────────────────────────────────────────────────────
+  createProposition(
+    elementId: string,
+    body: { label: string; title: string },
+  ): Promise<Proposition> {
+    return request("POST", `/elements/${elementId}/propositions`, body)
+  },
+
+  updateProposition(
+    propositionId: string,
+    body: Partial<{ title: string; status: PropositionStatus }>,
+  ): Promise<Proposition> {
+    return request("PUT", `/propositions/${propositionId}`, body)
+  },
+
+  deleteProposition(propositionId: string): Promise<{ ok: boolean }> {
+    return request("DELETE", `/propositions/${propositionId}`)
+  },
+
   // ── Documents (upload + async analysis) ───────────────────────────────────
   // POST /api/cases/{id}/documents (multipart) -> { document_id, job_id }, then
   // poll GET /jobs/{id} until "done" (PDF extract + Claude analysis writes
@@ -141,6 +183,17 @@ export const api = {
     return request("POST", `/propositions/${propositionId}/evidence`, body)
   },
 
+  updateEvidence(
+    evidenceId: string,
+    body: Partial<{ excerpt: string; classification: EvidenceClassification; source_ref: string }>,
+  ): Promise<Evidence> {
+    return request("PUT", `/evidence/${evidenceId}`, body)
+  },
+
+  deleteEvidence(evidenceId: string): Promise<{ ok: boolean }> {
+    return request("DELETE", `/evidence/${evidenceId}`)
+  },
+
   // ── Gaps ────────────────────────────────────────────────────────────────
   getGaps(caseId: string): Promise<Gap[]> {
     return request("GET", `/cases/${caseId}/gaps`)
@@ -152,6 +205,10 @@ export const api = {
 
   updateGap(gapId: string, body: Partial<Gap>): Promise<Gap> {
     return request("PUT", `/gaps/${gapId}`, body)
+  },
+
+  deleteGap(gapId: string): Promise<{ ok: boolean }> {
+    return request("DELETE", `/gaps/${gapId}`)
   },
 
   // ── Jobs (polling) — GET /api/jobs/{id} ───────────────────────────────────

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { api } from "../api/client"
 import type { CaseDetail, DocumentItem, Gap } from "../types"
-import { ReadinessBar, Spinner } from "../components/ui"
+import { Button, ReadinessBar, Spinner } from "../components/ui"
 import ArgumentGraph from "../features/ArgumentGraph"
 import CaseOverview from "../features/CaseOverview"
 import DocumentsInbox from "../features/DocumentsInbox"
@@ -30,6 +30,7 @@ export default function CaseWorkspace() {
   const { caseId } = useParams<{ caseId: string }>()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>("overview")
+  const [editMode, setEditMode] = useState(false)
 
   const [caseDetail, setCaseDetail] = useState<CaseDetail | null>(null)
   const [documents, setDocuments] = useState<DocumentItem[]>([])
@@ -111,31 +112,50 @@ export default function CaseWorkspace() {
           </div>
 
           {/* Tabs — DESIGN_SYSTEM.md §4 */}
-          <div className="mt-5 flex gap-1 border-b border-border">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`border-b-2 px-4 py-3 text-sm font-semibold transition-colors cursor-pointer ${
-                  tab === t.id
-                    ? "border-navy text-navy"
-                    : "border-transparent text-muted hover:text-navy"
-                }`}
+          <div className="mt-5 flex items-center justify-between gap-1 border-b border-border">
+            <div className="flex gap-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setTab(t.id)
+                    if (t.id !== "graph") setEditMode(false)
+                  }}
+                  className={`border-b-2 px-4 py-3 text-sm font-semibold transition-colors cursor-pointer ${
+                    tab === t.id
+                      ? "border-navy text-navy"
+                      : "border-transparent text-muted hover:text-navy"
+                  }`}
+                >
+                  {t.label}
+                  {t.id === "gaps" && gaps.filter((g) => g.status === "open").length > 0 && (
+                    <span className="ml-2 rounded-full bg-error px-1.5 py-0.5 text-[10px] text-white">
+                      {gaps.filter((g) => g.status === "open").length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {tab === "graph" && caseDetail.has_graph && (
+              <Button
+                variant="secondary"
+                className="!py-2 text-xs"
+                onClick={() => setEditMode(!editMode)}
               >
-                {t.label}
-                {t.id === "gaps" && gaps.filter((g) => g.status === "open").length > 0 && (
-                  <span className="ml-2 rounded-full bg-error px-1.5 py-0.5 text-[10px] text-white">
-                    {gaps.filter((g) => g.status === "open").length}
-                  </span>
-                )}
-              </button>
-            ))}
+                {editMode ? "✓ Done Editing" : "✎ Edit Graph"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Tab content */}
       <div className="mx-auto max-w-[1200px] px-6 py-8">
+        {editMode && tab === "graph" && (
+          <div className="mb-4 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning">
+            ⚠️ Edit mode — changes save immediately
+          </div>
+        )}
         {tab === "overview" && (
           <CaseOverview
             caseDetail={caseDetail}
@@ -144,12 +164,25 @@ export default function CaseWorkspace() {
             onJumpToGaps={() => setTab("gaps")}
           />
         )}
-        {tab === "graph" && <ArgumentGraph elements={caseDetail.elements} />}
+        {tab === "graph" && (
+          <ArgumentGraph
+            elements={caseDetail.elements}
+            editMode={editMode}
+            onChanged={reload}
+            documents={documents}
+            caseId={caseId!}
+          />
+        )}
         {tab === "documents" && (
           <DocumentsInbox documents={documents} caseId={caseId!} onChanged={reload} />
         )}
         {tab === "gaps" && (
-          <GapsPanel gaps={gaps} caseId={caseId!} onChanged={reload} />
+          <GapsPanel
+            gaps={gaps}
+            caseId={caseId!}
+            onChanged={reload}
+            editMode={editMode}
+          />
         )}
       </div>
     </div>
