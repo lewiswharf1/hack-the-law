@@ -1188,6 +1188,14 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 **Verified working:** full CRUD tested end-to-end against the live `scaffold` DB — login → create → get detail (empty graph) → update (status change + long-name `short_name` truncation) → delete → delete-again-404. Auth gating (403 unauthenticated) and missing-case (404) both confirmed.
 
+**Jobs polling endpoint (Hour 1.5–2)**
+- `app/routers/jobs.py` — two pieces:
+  - `create_job(db, case_id=None, job_type="", document_id=None) → Job` — shared helper that inserts a `pending` job row and returns it. Both `case_id` and `document_id` are optional (graph-build jobs have no document). Used by the articles and documents routers (next stages) to register background work before handing a `job_id` to the client.
+  - `GET /api/jobs/{job_id}` — polling endpoint returning `JobStatus` (`id`, `status`, `job_type`, `error`, `completed_at`); 404 if not found. Gated behind `get_current_user`.
+- `app/main.py` — jobs router imported and mounted at `/api`.
+
+**Verified working:** app imports cleanly; `/api/jobs/{job_id}` route registered and confirmed via `python -c` import check.
+
 **Frontend (clickable mock prototype — NOT yet integrated)**
 
 > ⚠️ **This frontend currently runs entirely on mock data. None of it is wired to the live backend yet.** It exists so we can visualise and click through the whole product flow before the endpoints exist. As each backend endpoint is built (§18), the corresponding mock must be replaced with the real call (see "go-live" steps below). Treat every screen as a UI contract to be validated against the real API, not as proven integration.
@@ -1224,7 +1232,6 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 | Hour | Task | Files |
 |---|---|---|
-| **1.5–2** | Jobs polling endpoint | `app/routers/jobs.py` |
 | **2–3** | CELLAR service + article fetch + graph build | `app/services/cellar.py`, `app/services/gemini.py`, `app/services/graph_builder.py`, `app/routers/articles.py` |
 | **3–4** | Document upload + PDF extraction + LLM analysis | `app/services/pdf.py`, `app/services/doc_analyser.py`, `app/routers/documents.py` |
 | **4–4.5** | Graph CRUD + evidence + gaps | `app/routers/graph.py`, `app/routers/evidence.py`, `app/routers/gaps.py` |
