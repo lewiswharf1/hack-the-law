@@ -91,8 +91,10 @@ export default function DocumentsInbox({
         <div className="space-y-3">
           {documents.map((d) => {
             const status = STATUS_LABEL[d.processing_status]
-            const fileTypeLabel = FILE_TYPE_LABEL[d.file_type] ?? d.file_type?.toUpperCase() ?? "FILE"
-            const fileTypeColor = FILE_TYPE_COLOR[d.file_type] ?? "bg-subtle text-navy"
+            // Fallback to detecting file type from filename if API doesn't provide it
+            const detectedFileType = d.file_type || getFileType(d.filename)
+            const fileTypeLabel = FILE_TYPE_LABEL[detectedFileType] ?? detectedFileType?.toUpperCase() ?? "FILE"
+            const fileTypeColor = FILE_TYPE_COLOR[detectedFileType] ?? "bg-subtle text-navy"
             return (
               <Card key={d.id} className="!p-4">
                 <div className="flex items-center justify-between gap-4">

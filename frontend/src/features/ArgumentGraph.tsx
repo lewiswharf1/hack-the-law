@@ -633,12 +633,22 @@ function EvidencePanel({
   useEffect(() => {
     let active = true
     api.getEvidence(proposition.id).then((ev) => {
-      if (active) setEvidence(ev)
+      if (active) {
+        // Enrich evidence with document filenames from documents array
+        const docNameMap = Object.fromEntries(
+          documents.map((d) => [d.id, d.filename])
+        )
+        const enrichedEv = ev.map((e) => ({
+          ...e,
+          document_filename: docNameMap[e.document_id] || e.document_filename || "Unknown document",
+        }))
+        setEvidence(enrichedEv)
+      }
     })
     return () => {
       active = false
     }
-  }, [proposition.id])
+  }, [proposition.id, documents])
 
   async function refetchEvidence() {
     try {
