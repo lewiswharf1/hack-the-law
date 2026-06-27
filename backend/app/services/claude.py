@@ -20,7 +20,7 @@ Case context:
 
 Your task: Propose a structured argument graph for this claim. Each "element" is a top-level legal requirement that must be proven. Each "proposition" is a specific, falsifiable sub-claim within that element. Consider the related case law as precedent and context.
 
-Return ONLY valid JSON in this exact structure (no markdown, no explanation):
+CRITICAL: Return ONLY the JSON object below. Do NOT include markdown fences (```), explanations, preamble, or any other text. Start directly with the opening brace {{ and end with the closing brace }}, nothing else.
 {{
   "elements": [
     {{
@@ -62,7 +62,7 @@ Your tasks:
 4. Identify which propositions have NO supporting evidence (gaps)
 5. For each gap, suggest a specific remedial action
 
-Return ONLY valid JSON (no markdown, no explanation):
+CRITICAL: Return ONLY the JSON object below. Do NOT include markdown fences (```), explanations, preamble, or any other text. Start directly with the opening brace {{ and end with the closing brace }}, nothing else.
 {{
   "doc_type": "Expert Report | Judgment | Witness Statement | Correspondence | Regulation",
   "evidence_mappings": [
@@ -100,7 +100,21 @@ def _parse_json(text: str) -> dict:
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\n?", "", text)
         text = re.sub(r"\n?```$", "", text)
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        # Provide helpful error message with context
+        lines = text.split('\n')
+        error_line = e.lineno - 1 if e.lineno else 0
+        context_start = max(0, error_line - 2)
+        context_end = min(len(lines), error_line + 3)
+        context_lines = lines[context_start:context_end]
+        context = '\n'.join(f"  {i+context_start+1}: {line}" for i, line in enumerate(context_lines))
+        raise ValueError(
+            f"Claude returned invalid JSON at line {e.lineno}, column {e.colno}: {e.msg}\n"
+            f"Context:\n{context}\n"
+            f"Full response (first 500 chars):\n{text[:500]}"
+        )
 
 
 def build_argument_graph(case_name: str, client_name: str, articles: list[dict], case_law: list[dict] = None) -> dict:

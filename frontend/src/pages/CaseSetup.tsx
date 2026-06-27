@@ -41,6 +41,31 @@ function formatBytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function getFileType(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase()
+  return ext === "docx"
+    ? "docx"
+    : ext === "eml"
+      ? "eml"
+      : ext === "csv"
+        ? "csv"
+        : "pdf"
+}
+
+const FILE_TYPE_LABEL: Record<string, string> = {
+  pdf: "PDF",
+  docx: "DOC",
+  eml: "EMAIL",
+  csv: "CSV",
+}
+
+const FILE_TYPE_COLOR: Record<string, string> = {
+  pdf: "bg-error/10 text-error",
+  docx: "bg-warning/10 text-warning",
+  eml: "bg-info/10 text-info",
+  csv: "bg-success/10 text-success",
+}
+
 /** Promise wrapper around the callback-style pollUntilDone (CLAUDE.md §15.1). */
 function awaitJob(jobId: string) {
   return new Promise<void>((resolve, reject) => {
@@ -72,11 +97,20 @@ export default function CaseSetup() {
 
   function addFiles(list: FileList | null) {
     if (!list) return
-    const pdfs = Array.from(list).filter((f) => f.type === "application/pdf")
+    // Support PDF, DOCX, EML, CSV files
+    const supportedMimeTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "message/rfc822",
+      "text/csv",
+    ]
+    const documents = Array.from(list).filter(
+      (f) => supportedMimeTypes.includes(f.type) || /\.(pdf|docx|eml|csv)$/i.test(f.name)
+    )
     // De-dupe by name+size so re-picking the same file doesn't double-add.
     setFiles((prev) => {
       const seen = new Set(prev.map((f) => `${f.name}:${f.size}`))
-      return [...prev, ...pdfs.filter((f) => !seen.has(`${f.name}:${f.size}`))]
+      return [...prev, ...documents.filter((f) => !seen.has(`${f.name}:${f.size}`))]
     })
   }
 
@@ -192,7 +226,7 @@ export default function CaseSetup() {
       <section className="mt-10">
         <h2 className="text-2xl text-navy">2. Upload litigation bundle</h2>
         <p className="mt-1 text-sm text-muted">
-          Optional — PDFs only. Each document is classified and mapped to the
+          Optional — PDF, Word, Email, or CSV files. Each document is classified and mapped to the
           argument graph after it's built. You can also add documents later from
           the case workspace.
         </p>
@@ -209,13 +243,13 @@ export default function CaseSetup() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="application/pdf"
+            accept=".pdf,.docx,.eml,.csv"
             multiple
             className={inputCls}
             onChange={(e) => addFiles(e.target.files)}
           />
           <p className="font-semibold text-navy">
-            Click to choose PDFs, or drag &amp; drop
+            Click to choose documents, or drag &amp; drop
           </p>
           <p className="mt-1 text-xs text-muted">
             Text extraction only — scanned/OCR documents are not supported
@@ -225,29 +259,34 @@ export default function CaseSetup() {
 
         {files.length > 0 && (
           <div className="mt-4 space-y-2">
-            {files.map((f, i) => (
-              <div
-                key={`${f.name}:${f.size}`}
-                className="flex items-center justify-between rounded-md border border-border bg-surface px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-error/10 text-error text-[11px] font-semibold">
-                    PDF
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-navy">{f.name}</p>
-                    <p className="text-xs text-muted">{formatBytes(f.size)}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeFile(i)}
-                  className="text-sm text-muted hover:text-error cursor-pointer"
-                  aria-label={`Remove ${f.name}`}
+            {files.map((f, i) => {
+              const fileType = getFileType(f.name)
+              const fileTypeLabel = FILE_TYPE_LABEL[fileType] || "FILE"
+              const fileTypeColor = FILE_TYPE_COLOR[fileType] || "bg-subtle text-navy"
+              return (
+                <div
+                  key={`${f.name}:${f.size}`}
+                  className="flex items-center justify-between rounded-md border border-border bg-surface px-4 py-3"
                 >
-                  Remove
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-[11px] font-semibold ${fileTypeColor}`}>
+                      {fileTypeLabel}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-navy">{f.name}</p>
+                      <p className="text-xs text-muted">{formatBytes(f.size)}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="text-sm text-muted hover:text-error cursor-pointer"
+                    aria-label={`Remove ${f.name}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )
+            })}
           </div>
         )}
       </section>
