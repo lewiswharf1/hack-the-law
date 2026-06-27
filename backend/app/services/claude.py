@@ -52,7 +52,7 @@ DOC_ANALYSIS_PROMPT = """You are a legal AI assistant. Analyse the following doc
 DOCUMENT TEXT:
 {doc_text}
 
-LEGAL PROPOSITIONS TO MAP AGAINST:
+LEGAL PROPOSITIONS TO MAP AGAINST (use the "id" field EXACTLY as shown):
 {propositions_json}
 
 Your tasks:
@@ -67,7 +67,7 @@ Return ONLY valid JSON (no markdown, no explanation):
   "doc_type": "Expert Report | Judgment | Witness Statement | Correspondence | Regulation",
   "evidence_mappings": [
     {{
-      "proposition_id": "uuid-of-proposition",
+      "proposition_id": "copy-the-id-field-from-the-list-above",
       "excerpt": "Exact or near-exact text from the document",
       "classification": "Supportive | Adverse | Neutral",
       "source_ref": "e.g. §4.2, p.12, para 17"
@@ -75,7 +75,7 @@ Return ONLY valid JSON (no markdown, no explanation):
   ],
   "suggested_gaps": [
     {{
-      "proposition_id": "uuid-of-proposition",
+      "proposition_id": "copy-the-id-field-from-the-list-above",
       "title": "Short gap title",
       "why": "Why this is a gap in the current evidence",
       "severity": "Critical | High | Medium",
@@ -84,11 +84,13 @@ Return ONLY valid JSON (no markdown, no explanation):
   ]
 }}
 
-Important:
+Critical Instructions:
+- For every proposition_id in your response: COPY EXACTLY the "id" value from the LEGAL PROPOSITIONS list above
+- Do NOT generate, guess, or invent any UUIDs
+- Do NOT use the "label" field (e.g., "E1-P1") as the proposition_id—only use the "id" field
 - Only include evidence_mappings where the document actually contains relevant content
-- Only flag a gap if the proposition has no supportive evidence across all documents (not just this one)
-- Use the exact proposition UUIDs provided, not labels
-- Keep excerpts under 300 characters, capturing the most legally significant sentence
+- Only flag a gap if the proposition has no supportive evidence
+- Keep excerpts under 300 characters
 """
 
 

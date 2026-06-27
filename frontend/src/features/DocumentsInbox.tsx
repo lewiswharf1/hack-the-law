@@ -20,6 +20,31 @@ const DOC_TYPE_COLOR: Record<string, string> = {
   Regulation: "bg-navy/10 text-navy",
 }
 
+const FILE_TYPE_COLOR: Record<string, string> = {
+  pdf: "bg-error/10 text-error",
+  docx: "bg-warning/10 text-warning",
+  eml: "bg-info/10 text-info",
+  csv: "bg-success/10 text-success",
+}
+
+const FILE_TYPE_LABEL: Record<string, string> = {
+  pdf: "PDF",
+  docx: "DOC",
+  eml: "EMAIL",
+  csv: "CSV",
+}
+
+function getFileType(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase()
+  return ext === "docx"
+    ? "docx"
+    : ext === "eml"
+      ? "eml"
+      : ext === "csv"
+        ? "csv"
+        : "pdf"
+}
+
 function formatBytes(n: number) {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`
@@ -54,24 +79,26 @@ export default function DocumentsInbox({
             classified and mapped to propositions automatically
           </p>
         </div>
-        <Button onClick={() => setShowUpload(true)}>+ Upload PDF</Button>
+        <Button onClick={() => setShowUpload(true)}>+ Upload document</Button>
       </div>
 
       {documents.length === 0 ? (
         <Card className="text-center text-muted">
-          No documents yet. Upload a PDF to have it classified and mapped to the
-          argument graph.
+          No documents yet. Upload a document (PDF, Word, Email, or CSV) to have it
+          classified and mapped to the argument graph.
         </Card>
       ) : (
         <div className="space-y-3">
           {documents.map((d) => {
             const status = STATUS_LABEL[d.processing_status]
+            const fileTypeLabel = FILE_TYPE_LABEL[d.file_type] ?? d.file_type?.toUpperCase() ?? "FILE"
+            const fileTypeColor = FILE_TYPE_COLOR[d.file_type] ?? "bg-subtle text-navy"
             return (
               <Card key={d.id} className="!p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-error/10 text-error text-xs font-semibold">
-                      PDF
+                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-md text-xs font-semibold ${fileTypeColor}`}>
+                      {fileTypeLabel}
                     </span>
                     <div>
                       <p className="font-semibold text-navy">{d.filename}</p>
@@ -186,24 +213,24 @@ function UploadModal({
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf"
+          accept=".pdf,.docx,.eml,.csv"
           className="hidden"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
         {file ? (
           <>
-            <span className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-md bg-error/10 text-error text-xs font-semibold">
-              PDF
+            <span className={`mb-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-xs font-semibold ${FILE_TYPE_COLOR[getFileType(file.name)] ?? "bg-subtle text-navy"}`}>
+              {FILE_TYPE_LABEL[getFileType(file.name)] ?? getFileType(file.name).toUpperCase()}
             </span>
             <p className="font-semibold text-navy">{file.name}</p>
             <p className="text-xs text-muted">{formatBytes(file.size)}</p>
           </>
         ) : (
           <>
-            <p className="font-semibold text-navy">Click to choose a PDF</p>
+            <p className="font-semibold text-navy">Click to choose a document</p>
             <p className="mt-1 text-xs text-muted">
-              Text extraction only — scanned/OCR documents are not supported
-              (CLAUDE.md §19).
+              Supported: PDF, Word (.docx), Email (.eml), CSV · Text extraction
+              only — scanned/OCR documents are not supported.
             </p>
           </>
         )}
@@ -212,7 +239,7 @@ function UploadModal({
       {phase === "analysing" && (
         <p className="mt-4 flex items-center gap-2 text-sm text-info">
           <span className="inline-block h-3 w-3 animate-spin-slow rounded-full border-2 border-info border-t-transparent" />
-          Extracting text and mapping evidence to propositions with Gemini…
+          Extracting text and mapping evidence to propositions with Claude…
         </p>
       )}
       {phase === "uploading" && (

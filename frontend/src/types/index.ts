@@ -118,6 +118,7 @@ export interface DocumentItem {
   case_id: string
   filename: string
   file_size_bytes: number
+  file_type: string // 'pdf' | 'docx' | 'eml' | 'csv'
   doc_type: string | null
   processing_status: DocStatus
   uploaded_at: string

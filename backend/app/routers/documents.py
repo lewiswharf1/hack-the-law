@@ -9,8 +9,9 @@ from app import models, schemas
 from app.config import settings
 from app.deps import get_current_user, get_db
 from app.routers.jobs import create_job
-from app.services.pdf import extract_text
+from app.services.extractors import extract_text_by_type
 from app.services.doc_analyser import run_document_analysis
+from app.utils.file_validation import get_file_type, validate_file_extension
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -22,7 +23,7 @@ def upload_document(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    """Upload a PDF document to a case.
+    """Upload a document (PDF, DOCX, EML, CSV) to a case.
 
     Returns {document_id, job_id} for polling analysis progress.
     """
@@ -35,11 +36,14 @@ def upload_document(
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
-    if not file.filename.lower().endswith(".pdf"):
+    # Validate file type
+    is_valid, file_type_or_error = validate_file_extension(file.filename)
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF files are supported",
+            detail=file_type_or_error,
         )
+    file_type = file_type_or_error
 
     # Create uploads directory if it doesn't exist
     os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
@@ -60,18 +64,24 @@ def upload_document(
             detail=f"Failed to save file: {str(e)}",
         )
 
-    # Extract text synchronously (fast for most PDFs)
+    # Extract text synchronously
     try:
-        extracted_text = extract_text(file_path)
+        extracted_text = extract_text_by_type(file_path, file_type)
     except ValueError as e:
-        # PDF has no text (e.g., scanned)
+        # No extractable text
         extracted_text = ""
         error_msg = str(e)
+    except UnicodeDecodeError:
+        os.remove(file_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File encoding error: {file_type.upper()} may be corrupted or in an unsupported encoding",
+        )
     except Exception as e:
         os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to extract text from PDF: {str(e)}",
+            detail=f"Failed to read {file_type.upper()}: {str(e)}",
         )
 
     # Create Document record
@@ -81,6 +91,7 @@ def upload_document(
         filename=file.filename,
         file_path=file_path,
         file_size_bytes=file_size,
+        file_type=file_type,
         extracted_text=extracted_text,
         processing_status="pending" if extracted_text else "failed",
         uploaded_at=datetime.utcnow(),
@@ -94,7 +105,7 @@ def upload_document(
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="PDF contains no extractable text (possibly scanned without OCR)",
+            detail=f"{file_type.upper()} contains no extractable text (possibly empty or scanned without OCR)",
         )
 
     # Create analysis job
@@ -155,6 +166,7 @@ def get_document_detail(
         case_id=document.case_id,
         filename=document.filename,
         file_size_bytes=document.file_size_bytes,
+        file_type=document.file_type,
         doc_type=document.doc_type,
         processing_status=document.processing_status,
         uploaded_at=document.uploaded_at,

@@ -184,6 +184,7 @@ class Document(BaseModel):
     case_id: UUID
     filename: str
     file_size_bytes: int
+    file_type: str
     doc_type: Optional[str] = None
     processing_status: str
     uploaded_at: datetime

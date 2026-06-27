@@ -79,6 +79,7 @@ class Document(Base):
     filename          = Column(Text, nullable=False)
     file_path         = Column(Text, nullable=False)
     file_size_bytes   = Column(Integer, nullable=False, server_default="0")
+    file_type         = Column(Text, nullable=False, server_default="pdf")
     doc_type          = Column(Text)
     extracted_text    = Column(Text)
     processing_status = Column(Text, nullable=False, server_default="pending")

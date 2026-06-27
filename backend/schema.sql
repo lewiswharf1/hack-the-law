@@ -68,6 +68,7 @@ CREATE TABLE documents (
   filename          TEXT NOT NULL,
   file_path         TEXT NOT NULL,
   file_size_bytes   INTEGER NOT NULL DEFAULT 0,
+  file_type         TEXT NOT NULL DEFAULT 'pdf',
   doc_type          TEXT,
   extracted_text    TEXT,
   processing_status TEXT NOT NULL DEFAULT 'pending',
