@@ -50,90 +50,92 @@ export default function CasesList() {
   }
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl text-navy">Cases</h1>
-          <p className="mt-1 text-sm text-muted">
-            {cases ? `${cases.length} matters` : "Loading…"}
-          </p>
+    <div className="min-h-full bg-subtle">
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl text-navy">Cases</h1>
+            <p className="mt-1 text-sm text-muted">
+              {cases ? `${cases.length} matters` : "Loading…"}
+            </p>
+          </div>
+          <Button onClick={() => setShowNew(true)}>+ New case</Button>
         </div>
-        <Button onClick={() => setShowNew(true)}>+ New case</Button>
-      </div>
 
-      {!cases ? (
-        <p className="text-muted">Loading cases…</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {cases.map((c) => (
-            <Card
-              key={c.id}
-              hover
-              onClick={() =>
-                navigate(c.has_graph ? `/cases/${c.id}` : `/cases/${c.id}/setup`)
-              }
-              className="relative"
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setDeleteConfirm(c.id)
-                }}
-                className="absolute right-4 top-4 p-1 text-muted hover:text-error transition-colors"
-                title="Delete case"
+        {!cases ? (
+          <p className="text-muted">Loading cases…</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {cases.map((c) => (
+              <Card
+                key={c.id}
+                hover
+                onClick={() =>
+                  navigate(c.has_graph ? `/cases/${c.id}` : `/cases/${c.id}/setup`)
+                }
+                className="relative"
               >
-                <Trash2 size={16} />
-              </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteConfirm(c.id)
+                  }}
+                  className="absolute right-4 top-4 p-1 text-muted hover:text-error transition-colors"
+                  title="Delete case"
+                >
+                  <Trash2 size={16} />
+                </button>
 
-              <div className="mb-3 flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${STATUS_DOT[c.status] ?? "bg-muted"}`} />
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  {c.status}
-                </span>
-              </div>
-              <h3 className="text-xl text-navy leading-snug">{c.short_name}</h3>
-              <p className="mt-1 text-sm text-muted">{c.client}</p>
-
-              <dl className="mt-4 space-y-1 text-xs text-muted">
-                <div className="flex justify-between">
-                  <dt>Court</dt>
-                  <dd className="text-navy text-right">{c.court || "—"}</dd>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${STATUS_DOT[c.status] ?? "bg-muted"}`} />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    {c.status}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <dt>Claim</dt>
-                  <dd className="text-navy text-right">{c.claim_type}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Reference</dt>
-                  <dd className="text-navy text-right">{c.reference || "—"}</dd>
-                </div>
-              </dl>
+                <h3 className="text-xl text-navy leading-snug">{c.short_name}</h3>
+                <p className="mt-1 text-sm text-muted">{c.client}</p>
 
-              <div className="mt-4">
-                <div className="mb-1 flex justify-between text-xs">
-                  <span className="text-muted">Readiness</span>
-                  <span className="font-semibold text-navy">{c.readiness}%</span>
+                <dl className="mt-4 space-y-1 text-xs text-muted">
+                  <div className="flex justify-between">
+                    <dt>Court</dt>
+                    <dd className="text-navy text-right">{c.court || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Claim</dt>
+                    <dd className="text-navy text-right">{c.claim_type}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Reference</dt>
+                    <dd className="text-navy text-right">{c.reference || "—"}</dd>
+                  </div>
+                </dl>
+
+                <div className="mt-4">
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="text-muted">Readiness</span>
+                    <span className="font-semibold text-navy">{c.readiness}%</span>
+                  </div>
+                  <ReadinessBar value={c.readiness} />
                 </div>
-                <ReadinessBar value={c.readiness} />
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+              </Card>
+            ))}
+          </div>
+        )}
 
-      <NewCaseModal
-        open={showNew}
-        onClose={() => setShowNew(false)}
-        onCreate={handleCreate}
-      />
+        <NewCaseModal
+          open={showNew}
+          onClose={() => setShowNew(false)}
+          onCreate={handleCreate}
+        />
 
-      <DeleteConfirmModal
-        open={!!deleteConfirm}
-        caseName={cases?.find((c) => c.id === deleteConfirm)?.short_name}
-        onClose={() => setDeleteConfirm(null)}
-        onConfirm={() => deleteConfirm ? handleDelete(deleteConfirm) : Promise.resolve()}
-        loading={deleting}
-      />
+        <DeleteConfirmModal
+          open={!!deleteConfirm}
+          caseName={cases?.find((c) => c.id === deleteConfirm)?.short_name}
+          onClose={() => setDeleteConfirm(null)}
+          onConfirm={() => deleteConfirm ? handleDelete(deleteConfirm) : Promise.resolve()}
+          loading={deleting}
+        />
+      </div>
     </div>
   )
 }

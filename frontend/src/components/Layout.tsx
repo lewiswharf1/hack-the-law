@@ -16,14 +16,9 @@ export function TopNav() {
 
   return (
     <header className="h-[60px] flex items-center justify-between px-6 bg-surface border-b border-border">
-      <Link to="/cases" className="flex items-center gap-2 no-underline">
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-navy text-white font-serif text-lg">
-          S
-        </span>
-        <span className="font-serif text-xl text-navy">Scaffold</span>
-        <span className="ml-2 text-xs text-muted hidden sm:inline">
-          EU Data Law · Argument Graphs
-        </span>
+      <Link to="/cases" className="flex items-center gap-3 no-underline">
+        <img src="/logo.png" alt="Donna" className="h-10 w-10 object-contain" />
+        <span className="font-serif text-xl text-navy">Donna</span>
       </Link>
       <button
         onClick={logout}

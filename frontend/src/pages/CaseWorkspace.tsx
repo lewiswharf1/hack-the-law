@@ -161,41 +161,43 @@ export default function CaseWorkspace() {
       </div>
 
       {/* Tab content */}
-      <div className="mx-auto max-w-[1200px] px-6 py-8">
-        {editMode && tab === "graph" && (
-          <div className="mb-4 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            Edit mode — changes save immediately
-          </div>
-        )}
-        {tab === "overview" && (
-          <CaseOverview
-            caseDetail={caseDetail}
-            documents={documents}
-            gaps={gaps}
-            onJumpToGaps={() => setTab("gaps")}
-          />
-        )}
-        {tab === "graph" && (
-          <ArgumentGraph
-            elements={caseDetail.elements}
-            editMode={editMode}
-            onChanged={reload}
-            documents={documents}
-            caseId={caseId!}
-          />
-        )}
-        {tab === "documents" && (
-          <DocumentsInbox documents={documents} caseId={caseId!} onChanged={reload} />
-        )}
-        {tab === "gaps" && (
-          <GapsPanel
-            gaps={gaps}
-            caseId={caseId!}
-            onChanged={reload}
-            editMode={editMode}
-          />
-        )}
+      <div className="min-h-full bg-subtle">
+        <div className="mx-auto max-w-[1200px] px-6 py-8">
+          {editMode && tab === "graph" && (
+            <div className="mb-4 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Edit mode — changes save immediately
+            </div>
+          )}
+          {tab === "overview" && (
+            <CaseOverview
+              caseDetail={caseDetail}
+              documents={documents}
+              gaps={gaps}
+              onJumpToGaps={() => setTab("gaps")}
+            />
+          )}
+          {tab === "graph" && (
+            <ArgumentGraph
+              elements={caseDetail.elements}
+              editMode={editMode}
+              onChanged={reload}
+              documents={documents}
+              caseId={caseId!}
+            />
+          )}
+          {tab === "documents" && (
+            <DocumentsInbox documents={documents} caseId={caseId!} onChanged={reload} />
+          )}
+          {tab === "gaps" && (
+            <GapsPanel
+              gaps={gaps}
+              caseId={caseId!}
+              onChanged={reload}
+              editMode={editMode}
+            />
+          )}
+        </div>
       </div>
     </div>
   )
