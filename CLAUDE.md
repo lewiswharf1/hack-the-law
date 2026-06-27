@@ -1175,6 +1175,19 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 **Verified working:** `POST /api/auth/login` returns a valid JWT. Server starts cleanly with `uvicorn app.main:app --port 8000`.
 
+**Cases CRUD (Hour 1–1.5)**
+- `app/schemas.py` — all §7 Pydantic response/request schemas: `CaseSummary`, `CaseDetail` (with nested `ElementOut` → `PropositionOut` carrying `evidence_count`/`gap_count`), `NewCaseDetails`, `CaseUpdate`, `ArticleInput`, `CaseArticle`, `GraphResponse`, `JobStatus`, `Gap`, `Evidence`, `Document`, `DocumentDetail`, plus `OkResponse`. UUID/timestamp fields typed as `UUID`/`datetime` so ORM rows (using `as_uuid=True`) serialize to the JSON strings the frontend expects.
+- `app/routers/cases.py` — all five routes, gated behind `get_current_user`:
+  - `GET /api/cases` — all cases, `created_at desc`
+  - `POST /api/cases` — creates with defaults (`status=Draft`, `claim_type=Pending`, `readiness=0`, `has_graph=False`); derives `short_name` mirroring the frontend's truncation rule in `client.ts` (`name[:26] + "…"` when > 28 chars)
+  - `GET /api/cases/{id}` — `CaseDetail` with nested elements → propositions; evidence/gap counts batched into two grouped queries
+  - `PUT /api/cases/{id}` — partial update via `exclude_unset`, re-derives `short_name` when `name` changes, bumps `updated_at`
+  - `DELETE /api/cases/{id}` — FK cascade removes children, returns `{ok: true}`
+- `app/main.py` — cases router mounted at `/api`.
+- **Note:** `NewCaseDetails` defaults `client`/`court`/`reference` to `""` (only `name` is required), matching the DB column defaults.
+
+**Verified working:** full CRUD tested end-to-end against the live `scaffold` DB — login → create → get detail (empty graph) → update (status change + long-name `short_name` truncation) → delete → delete-again-404. Auth gating (403 unauthenticated) and missing-case (404) both confirmed.
+
 **Frontend (clickable mock prototype — NOT yet integrated)**
 
 > ⚠️ **This frontend currently runs entirely on mock data. None of it is wired to the live backend yet.** It exists so we can visualise and click through the whole product flow before the endpoints exist. As each backend endpoint is built (§18), the corresponding mock must be replaced with the real call (see "go-live" steps below). Treat every screen as a UI contract to be validated against the real API, not as proven integration.
@@ -1211,7 +1224,6 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 | Hour | Task | Files |
 |---|---|---|
-| **1–1.5** | Cases CRUD | `app/schemas.py`, `app/routers/cases.py` |
 | **1.5–2** | Jobs polling endpoint | `app/routers/jobs.py` |
 | **2–3** | CELLAR service + article fetch + graph build | `app/services/cellar.py`, `app/services/gemini.py`, `app/services/graph_builder.py`, `app/routers/articles.py` |
 | **3–4** | Document upload + PDF extraction + LLM analysis | `app/services/pdf.py`, `app/services/doc_analyser.py`, `app/routers/documents.py` |
