@@ -1398,10 +1398,44 @@ Once all backend routes (§7) are complete and both frontend mock and backend ar
 | **1.5–2** | Jobs polling | ✅ Done |
 | **2–3** | CELLAR + Claude + articles endpoints | ✅ Done |
 | **3–4** | Document upload + PDF extraction + LLM analysis | ✅ Done |
-| **4–4.5** | Graph CRUD (elements, propositions, evidence, gaps) | 🔜 Next |
+| **4–4.5** | Graph CRUD (elements, propositions, evidence, gaps) | ✅ Done |
 | **4.5–5** | *Included above* | ✅ Done (readiness + status refresh) |
 | **5–7.5** | **Frontend integration** | 🔜 Next |
 | **7.5–8** | End-to-end test + blockers | 🔜 Next |
+
+**Graph, Evidence, Gaps CRUD (Hours 4–4.5) ✅ COMPLETE**
+- `app/routers/graph.py` — element and proposition CRUD
+  - `GET /api/cases/{case_id}/graph` — returns elements ordered by position with nested propositions + evidence/gap counts
+  - `POST /api/cases/{case_id}/elements` — creates element with auto-set position (max+1)
+  - `PUT /api/elements/{element_id}` — partial update (title/status/source)
+  - `DELETE /api/elements/{element_id}` — cascade deletes propositions + their evidence/gaps
+  - `POST /api/elements/{element_id}/propositions` — creates proposition with auto-set position
+  - `PUT /api/propositions/{proposition_id}` — partial update with auto-refresh of element status and case readiness on status change
+  - `DELETE /api/propositions/{proposition_id}` — cascade deletes evidence and gaps
+- `app/routers/evidence.py` — evidence CRUD
+  - `GET /api/propositions/{proposition_id}/evidence` — returns evidence ordered by created_at
+  - `POST /api/propositions/{proposition_id}/evidence` — creates evidence with added_by=human; auto-refreshes proposition status and recalculates case readiness
+  - `PUT /api/evidence/{evidence_id}` — partial update with auto-refresh and readiness recalc
+  - `DELETE /api/evidence/{evidence_id}` — delete with auto-refresh and readiness recalc
+- `app/routers/gaps.py` — gaps CRUD
+  - `GET /api/cases/{case_id}/gaps` — returns gaps ordered by severity (Critical > High > Medium > Low) then created_at desc
+  - `POST /api/cases/{case_id}/gaps` — creates gap with source=human, status=open
+  - `PUT /api/gaps/{gap_id}` — partial update including status (open→resolved)
+  - `DELETE /api/gaps/{gap_id}` — hard delete
+- Updated `app/schemas.py` with request schemas: `ElementCreate`, `ElementUpdate`, `PropositionCreate`, `PropositionUpdate`, `EvidenceCreate`, `EvidenceUpdate`, `GapCreate`, `GapUpdate`
+- Updated `app/main.py` to register all three routers
+
+**Verified working (end-to-end tested all CRUD operations):**
+- ✅ Element creation with auto-position increment
+- ✅ Proposition creation linked to element + case
+- ✅ Evidence creation with added_by=human
+- ✅ Proposition status auto-update: Gap → Established (Supportive evidence) → Contested (mixed evidence)
+- ✅ Element status cascades up from children (Established → Contested → Gap based on worst child)
+- ✅ Case readiness recalculation on evidence/proposition changes (Established=100%, Contested=50%, Gap=0%)
+- ✅ Gap severity ordering: Critical > High > Medium > Low
+- ✅ Cascading deletes: element delete → propositions/evidence/gaps deleted; proposition delete → evidence/gaps deleted
+- ✅ Partial updates with proper 404 handling
+- ✅ All endpoints return proper JSON schemas matching frontend contracts
 
 ---
 

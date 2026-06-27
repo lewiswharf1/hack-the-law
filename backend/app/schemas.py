@@ -74,6 +74,28 @@ class GraphResponse(BaseModel):
     elements: list[ElementOut]
 
 
+class ElementCreate(BaseModel):
+    label: str
+    title: str
+    source: str = ""
+
+
+class ElementUpdate(BaseModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+    source: Optional[str] = None
+
+
+class PropositionCreate(BaseModel):
+    label: str
+    title: str
+
+
+class PropositionUpdate(BaseModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+
+
 # --- Articles ------------------------------------------------------------
 
 class ArticleInput(BaseModel):
@@ -107,6 +129,19 @@ class Evidence(BaseModel):
     created_at: datetime
 
 
+class EvidenceCreate(BaseModel):
+    document_id: UUID
+    excerpt: str
+    classification: str
+    source_ref: str = ""
+
+
+class EvidenceUpdate(BaseModel):
+    excerpt: Optional[str] = None
+    classification: Optional[str] = None
+    source_ref: Optional[str] = None
+
+
 # --- Gaps ----------------------------------------------------------------
 
 class Gap(BaseModel):
@@ -122,6 +157,22 @@ class Gap(BaseModel):
     source: str
     status: str
     created_at: datetime
+
+
+class GapCreate(BaseModel):
+    proposition_id: Optional[UUID] = None
+    title: str
+    why: str = ""
+    severity: str = "High"
+    action: str = ""
+
+
+class GapUpdate(BaseModel):
+    title: Optional[str] = None
+    why: Optional[str] = None
+    severity: Optional[str] = None
+    action: Optional[str] = None
+    status: Optional[str] = None
 
 
 # --- Documents -----------------------------------------------------------
