@@ -155,6 +155,10 @@ class JobStatus(BaseModel):
     completed_at: Optional[datetime] = None
 
 
+class JobIdResponse(BaseModel):
+    job_id: UUID
+
+
 # --- Misc ----------------------------------------------------------------
 
 class OkResponse(BaseModel):

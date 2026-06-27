@@ -12,7 +12,7 @@ When working on this project:
 
 ## 1. Context & Goals
 
-**What this is:** A legal argument graph tool for EU data law litigation. A lawyer uploads a litigation bundle, selects EU regulation articles, and Scaffold uses Gemini to construct a structured argument graph (Elements → Propositions → Evidence). Documents are classified and mapped to propositions automatically.
+**What this is:** A legal argument graph tool for EU data law litigation. A lawyer uploads a litigation bundle, selects EU regulation articles, and Scaffold uses Claude to construct a structured argument graph (Elements → Propositions → Evidence). Documents are classified and mapped to propositions automatically.
 
 **Constraints:**
 - 8-hour hackathon build
@@ -32,7 +32,7 @@ When working on this project:
 | Backend | Python 3.12 + FastAPI 0.115 | Sync (no async SQLAlchemy for speed) |
 | Database | PostgreSQL 16 | Single local instance |
 | ORM | SQLAlchemy 2.0 (sync) | psycopg2-binary driver |
-| LLM | Gemini 2.0 Flash | google-generativeai SDK |
+| LLM | Claude 3.5 Haiku | anthropic SDK |
 | PDF | PyMuPDF (fitz) | Text extraction only, no OCR |
 | HTTP client | httpx | Sync, for CELLAR API |
 | HTML parser | beautifulsoup4 + lxml | Parse EUR-Lex article HTML |
@@ -51,7 +51,7 @@ pyjwt==2.9.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.9
 httpx==0.27.2
-google-generativeai==0.8.3
+anthropic==0.39.0
 pymupdf==1.24.11
 beautifulsoup4==4.12.3
 lxml==5.3.0
@@ -80,8 +80,8 @@ pydantic-settings==2.5.2
 │  ┌─────────────────────────────┐    └────────────────────┘  │
 │  │  CELLAR Service             │  ┌────────────────────────┐ │
 │  │  → EUR-Lex HTML + parse     │  │  Document Service      │ │
-│  │  → Gemini graph build       │  │  → PyMuPDF extract     │ │
-│  │  → saves elements/props     │  │  → Gemini classify     │ │
+│  │  → Claude graph build       │  │  → PyMuPDF extract     │ │
+│  │  → saves elements/props     │  │  → Claude classify     │ │
 │  └─────────────────────────────┘  │  → saves evidence/gaps │ │
 │  ┌───────────────┐                └────────────────────────┘ │
 │  │  Jobs table   │ ← BackgroundTasks write status here       │
@@ -96,7 +96,7 @@ pydantic-settings==2.5.2
                      External APIs
               ┌───────────┴────────────┐
               │ EUR-Lex / CELLAR API   │
-              │ Gemini API             │
+              │ Anthropic Claude API   │
               └────────────────────────┘
 ```
 
@@ -260,9 +260,9 @@ scaffold-backend/
 │   └── services/
 │       ├── __init__.py
 │       ├── cellar.py        # EUR-Lex HTML fetch + article parser
-│       ├── gemini.py        # Gemini client + prompts
+│       ├── claude.py        # Claude client + prompts
 │       ├── pdf.py           # PyMuPDF text extraction
-│       ├── graph_builder.py # Orchestrates CELLAR + Gemini → saves graph
+│       ├── graph_builder.py # Orchestrates CELLAR + Claude → saves graph
 │       └── doc_analyser.py  # Orchestrates PDF + Gemini → saves evidence/gaps
 ├── uploads/                  # PDF storage (git-ignored)
 ├── schema.sql
@@ -278,9 +278,7 @@ scaffold-backend/
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/scaffold
-GEMINI_API_KEY=your_gemini_api_key
-CELLAR_USERNAME=your_cellar_username
-CELLAR_PASSWORD=your_cellar_password
+ANTHROPIC_API_KEY=your_anthropic_api_key
 JWT_SECRET=change_me_to_a_random_32char_string
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=480
@@ -335,8 +333,8 @@ Body: {
 }
 Response: { "job_id": string }
 -- Immediately returns a job_id. Backend runs in BackgroundTasks:
---   1. Fetch article text from CELLAR for each article
---   2. Call Gemini to build graph
+--   1. Fetch article text from EUR-Lex/CELLAR
+--   2. Call Claude to build graph
 --   3. Save elements + propositions to DB
 --   4. Set case.has_graph = true, case.status = 'In Progress'
 --   5. Set job.status = 'done'
@@ -390,7 +388,7 @@ Body: file (PDF)
 Response: { "document_id": string, "job_id": string }
 -- Saves file, extracts text immediately (sync, fast), then runs LLM analysis in BackgroundTasks:
 --   1. Build prompt with document text + all case propositions
---   2. Call Gemini → classification, evidence mappings, suggested gaps
+--   2. Call Claude → classification, evidence mappings, suggested gaps
 --   3. Save evidence items to DB
 --   4. Save AI-suggested gaps to DB (source='ai')
 --   5. Recalculate + save case readiness
@@ -513,26 +511,73 @@ Then refresh element status (worst-case child propagates up: if any child is Gap
 
 ## 10. CELLAR Service (`services/cellar.py`)
 
+The service fetches regulation articles from EUR-Lex HTML (public endpoint) and related CJEU case law from the CELLAR SPARQL endpoint (public, no credentials required). Both are passed to Gemini for context when building the argument graph.
+
 ```python
 import httpx
+import json
 from bs4 import BeautifulSoup
 from app.config import settings
 
 EURLEX_HTML_URL = "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:{celex_id}"
+CELLAR_SPARQL_URL = "https://publications.europa.eu/webapi/rdf/sparql"
 
 def fetch_article_text(celex_id: str, article_number: str) -> dict:
     """
-    Fetch full text of a specific article from EUR-Lex.
+    Fetch full text of a specific article from EUR-Lex HTML (public endpoint).
     Returns {"title": str, "text": str}
     """
     url = EURLEX_HTML_URL.format(celex_id=celex_id)
-    auth = (settings.CELLAR_USERNAME, settings.CELLAR_PASSWORD)
-
-    resp = httpx.get(url, auth=auth, timeout=30, follow_redirects=True)
+    resp = httpx.get(url, timeout=30, follow_redirects=True)
     resp.raise_for_status()
 
     soup = BeautifulSoup(resp.text, "lxml")
     return _extract_article(soup, article_number)
+
+
+def fetch_related_case_law(celex_id: str, article_number: str) -> list[dict]:
+    """
+    Query CELLAR SPARQL endpoint for the top 10 most recent CJEU cases mentioning
+    the given regulation and article. Returns [{"title": str, "celex_id": str, "url": str}]
+    """
+    # SPARQL query: find case law (CJEU judgments) referencing this regulation and article
+    query = f"""
+    PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    
+    SELECT DISTINCT ?caseUri ?caseTitle ?date
+    WHERE {{
+      ?caseUri a cdm:case_law ;
+               skos:prefLabel ?caseTitle ;
+               cdm:date_publication ?date ;
+               cdm:refers_to_eli_document ?eli .
+      ?eli cdm:eli_document_identifier ?eliId .
+      FILTER(CONTAINS(?eliId, "{celex_id}") || CONTAINS(?caseTitle, "Art. {article_number}"))
+    }}
+    ORDER BY DESC(?date)
+    LIMIT 10
+    """
+    
+    resp = httpx.get(
+        CELLAR_SPARQL_URL,
+        params={
+            "query": query,
+            "format": "json"
+        },
+        timeout=30
+    )
+    resp.raise_for_status()
+    
+    results = resp.json().get("results", {}).get("bindings", [])
+    return [
+        {
+            "title": r.get("caseTitle", {}).get("value", ""),
+            "celex_id": r.get("caseUri", {}).get("value", "").split("/")[-1],
+            "url": r.get("caseUri", {}).get("value", "")
+        }
+        for r in results
+        if r.get("caseTitle", {}).get("value")
+    ]
 
 
 def _extract_article(soup: BeautifulSoup, article_number: str) -> dict:
@@ -570,16 +615,15 @@ def _extract_article(soup: BeautifulSoup, article_number: str) -> dict:
 
 ---
 
-## 11. Gemini Service (`services/gemini.py`)
+## 11. Claude Service (`services/claude.py`)
 
 ```python
 import json
 import re
-import google.generativeai as genai
+from anthropic import Anthropic
 from app.config import settings
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-MODEL = genai.GenerativeModel("gemini-2.0-flash")
+client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 GRAPH_BUILD_PROMPT = """You are a legal AI assistant specialising in EU regulation litigation.
 
@@ -587,11 +631,14 @@ The following EU regulation article(s) have been selected as the basis for a leg
 
 {articles}
 
+Related case law from CJEU (for context and precedent):
+{case_law}
+
 Case context:
 - Case name: {case_name}
 - Client: {client}
 
-Your task: Propose a structured argument graph for this claim. Each "element" is a top-level legal requirement that must be proven. Each "proposition" is a specific, falsifiable sub-claim within that element.
+Your task: Propose a structured argument graph for this claim. Each "element" is a top-level legal requirement that must be proven. Each "proposition" is a specific, falsifiable sub-claim within that element. Consider the related case law as precedent and context.
 
 Return ONLY valid JSON in this exact structure (no markdown, no explanation):
 {{
@@ -617,6 +664,7 @@ Guidelines:
 - Each proposition must be a concrete, evidence-testable statement
 - Labels must be sequential: E1, E2, E3 and E1-P1, E1-P2, etc.
 - For Art. 82 GDPR claims, the three core elements are: (1) GDPR infringement by controller, (2) damage suffered by data subject, (3) causal link between infringement and damage
+- Use related case law to inform the propositions and identify sub-elements courts have found relevant
 """
 
 DOC_ANALYSIS_PROMPT = """You are a legal AI assistant. Analyse the following document in the context of an EU law claim.
@@ -665,7 +713,7 @@ Important:
 
 
 def _parse_json(text: str) -> dict:
-    """Extract JSON from Gemini response, handling markdown code fences."""
+    """Extract JSON from Claude response, handling markdown code fences."""
     text = text.strip()
     # Strip markdown code fences if present
     if text.startswith("```"):
@@ -674,22 +722,36 @@ def _parse_json(text: str) -> dict:
     return json.loads(text)
 
 
-def build_argument_graph(case_name: str, client: str, articles: list[dict]) -> dict:
+def build_argument_graph(case_name: str, client_name: str, articles: list[dict], case_law: list[dict] = None) -> dict:
     """
     articles: [{"article_number": "82", "article_title": "...", "article_text": "..."}]
+    case_law: [{"title": "Case name", "celex_id": "...", "url": "..."}] (optional)
     Returns parsed JSON dict with 'elements' key.
     """
     articles_str = "\n\n---\n\n".join(
         f"Article {a['article_number']} — {a['article_title']}\n\n{a['article_text']}"
         for a in articles
     )
+    
+    case_law_str = "None found."
+    if case_law:
+        case_law_str = "\n".join(
+            f"- {cl['title']} ({cl['celex_id']})"
+            for cl in case_law
+        )
+    
     prompt = GRAPH_BUILD_PROMPT.format(
         articles=articles_str,
+        case_law=case_law_str,
         case_name=case_name,
-        client=client,
+        client=client_name,
     )
-    response = MODEL.generate_content(prompt)
-    return _parse_json(response.text)
+    response = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return _parse_json(response.content[0].text)
 
 
 def analyse_document(doc_text: str, propositions: list[dict]) -> dict:
@@ -703,8 +765,12 @@ def analyse_document(doc_text: str, propositions: list[dict]) -> dict:
         doc_text=truncated,
         propositions_json=json.dumps(propositions, indent=2),
     )
-    response = MODEL.generate_content(prompt)
-    return _parse_json(response.text)
+    response = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return _parse_json(response.content[0].text)
 ```
 
 ---
@@ -731,7 +797,7 @@ def extract_text(file_path: str) -> str:
 ```python
 from sqlalchemy.orm import Session
 from app import models
-from app.services import cellar, gemini
+from app.services import cellar, claude
 from app.services.readiness import calculate_readiness
 import uuid
 
@@ -742,7 +808,7 @@ def run_graph_build(
     articles_input: list[dict],  # [{regulation_id, celex_id, article_number}]
 ):
     """
-    Full pipeline: CELLAR fetch → Gemini → save to DB.
+    Full pipeline: fetch articles + case law → Claude → save to DB.
     Runs in BackgroundTasks.
     """
     try:
@@ -752,7 +818,7 @@ def run_graph_build(
 
         case = db.query(models.Case).filter_by(id=case_id).first()
 
-        # 1. Fetch article text from CELLAR for each article
+        # 1. Fetch article text from EUR-Lex for each article
         fetched_articles = []
         for art in articles_input:
             result = cellar.fetch_article_text(art["celex_id"], art["article_number"])
@@ -775,10 +841,20 @@ def run_graph_build(
                 "article_text": result["text"],
             })
 
-        # 2. Call Gemini to build graph
-        graph = gemini.build_argument_graph(case.name, case.client, fetched_articles)
+        # 2. Fetch related case law from CELLAR SPARQL (use first article for case law context)
+        case_law = []
+        if fetched_articles:
+            first = articles_input[0]
+            try:
+                case_law = cellar.fetch_related_case_law(first["celex_id"], first["article_number"])
+            except Exception as e:
+                # If case law fetch fails, continue without it (graceful degradation)
+                pass
 
-        # 3. Save elements + propositions
+        # 3. Call Claude to build graph with articles + case law context
+        graph = claude.build_argument_graph(case.name, case.client, fetched_articles, case_law)
+
+        # 4. Save elements + propositions to DB
         for elem_data in graph.get("elements", []):
             element = models.Element(
                 id=str(uuid.uuid4()),
@@ -804,7 +880,7 @@ def run_graph_build(
                 )
                 db.add(proposition)
 
-        # 4. Update case
+        # 5. Update case with graph built status
         db.query(models.Case).filter_by(id=case_id).update({
             "has_graph": True,
             "status": "In Progress",
@@ -813,7 +889,7 @@ def run_graph_build(
             ),
         })
 
-        # 5. Mark job done
+        # 6. Mark job done
         db.query(models.Job).filter_by(id=job_id).update({
             "status": "done",
             "completed_at": "NOW()",
@@ -838,7 +914,7 @@ def run_graph_build(
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app import models
-from app.services import gemini
+from app.services import claude
 from app.services.readiness import calculate_readiness, refresh_proposition_status
 import uuid
 
@@ -849,7 +925,7 @@ def run_document_analysis(
     job_id: str,
 ):
     """
-    Full pipeline: text extraction → Gemini → save evidence + gaps.
+    Full pipeline: text extraction → Claude → save evidence + gaps.
     Text has already been extracted and saved; this reads it from DB.
     Runs in BackgroundTasks.
     """
@@ -869,8 +945,8 @@ def run_document_analysis(
             for p in propositions
         ]
 
-        # Call Gemini
-        result = gemini.analyse_document(document.extracted_text, props_for_prompt)
+        # Call Claude
+        result = claude.analyse_document(document.extracted_text, props_for_prompt)
 
         # Save doc_type
         db.query(models.Document).filter_by(id=document_id).update({
@@ -1095,7 +1171,7 @@ pip install -r requirements.txt
 
 # 3. Configure env
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY, CELLAR_USERNAME, CELLAR_PASSWORD
+# Edit .env with your ANTHROPIC_API_KEY
 
 # 4. Seed user
 python seed.py
@@ -1111,7 +1187,7 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 ---
 
-## 18. Build Order (8-Hour Plan)
+## 18. Build Order (8.5-Hour Plan)
 
 | Hour | What to build | Files |
 |---|---|---|
@@ -1119,13 +1195,14 @@ Login credentials for demo: `admin` / `scaffold2026`
 | **0.5–1** | FastAPI skeleton + DB models + auth | `main.py`, `database.py`, `models.py`, `auth.py`, `deps.py`, `routers/auth.py`, `seed.py` |
 | **1–1.5** | Cases CRUD | `schemas.py`, `routers/cases.py` |
 | **1.5–2** | Jobs table + polling endpoint | `routers/jobs.py` |
-| **2–3** | CELLAR service + article fetch + graph build (CELLAR → Gemini → DB) | `services/cellar.py`, `services/gemini.py`, `services/graph_builder.py`, `routers/articles.py` |
+| **2–3** | CELLAR + Claude + article/case-law fetch + graph build | `services/cellar.py`, `services/claude.py`, `services/graph_builder.py`, `routers/articles.py` |
 | **3–4** | Document upload + PDF extraction + LLM analysis pipeline | `services/pdf.py`, `services/doc_analyser.py`, `routers/documents.py` |
 | **4–4.5** | Graph CRUD (elements, propositions, evidence, gaps) | `routers/graph.py`, `routers/evidence.py`, `routers/gaps.py` |
 | **4.5–5** | Readiness calculation + proposition status auto-update | `services/readiness.py` |
 | **5–6.5** | Frontend: `api.ts`, login gate, wire CaseSetup, wire CasesList, wire graph view | `src/api.ts`, `App.tsx`, `CaseSetup.tsx`, `CasesList.tsx` |
 | **6.5–7.5** | Frontend: wire document upload, wire CaseOverview stats | `UploadModal.tsx`, `CaseOverview.tsx` |
 | **7.5–8** | End-to-end test of full flow, fix blockers | — |
+| **8–8.5** | Backend/Frontend integration: flip live flag, validate all endpoints, delete mocks | `src/api/client.ts`, mock cleanup |
 
 ---
 
@@ -1144,11 +1221,28 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 - Export argument graph as PDF (WeasyPrint)
 - Version history on elements/propositions (add `versions` table)
-- CJEU case law from CELLAR (`/judgments?celex_refs=32016R0679&article=82`)
-- DSA, AI Act, ePrivacy regulations
+- DSA, AI Act, ePrivacy regulations (currently GDPR only)
 - Multi-user with firm workspaces and roles
 - Document drafting editor connected to argument graph
 - Semantic search over evidence (pgvector)
+
+---
+
+## 20.5 Backend/Frontend Integration Phase (Hour 8–8.5)
+
+Once all backend routes (§7) are complete and both frontend mock and backend are built, integration is a single phase:
+
+1. **Bring up the backend** — ensure Postgres is running (`psql scaffold`), schema applied, user seeded, `uvicorn app.main:app --reload --port 8000` running
+2. **Set `VITE_USE_MOCKS=false`** in `src/api/client.ts` (or export from `.env.local`) to flip from mock data to live API calls. Every `api.*` method already contains the real `fetch` against the documented routes.
+3. **Walk the app end-to-end** — in dependency order (auth → cases → articles/build → documents/analyse → evidence/gaps):
+   - Verify each screen renders correctly against the live API
+   - Confirm the real response matches `src/types/` contracts
+   - Fix the contract on whichever side is wrong (backend schema or frontend type)
+4. **Delete mock artifacts** — once all endpoints are validated:
+   - Delete `src/api/mockData.ts`
+   - Remove mock branches + mirrored-logic helpers (`recalcReadiness`, `refreshPropositionStatus`, `finaliseJob`) from `src/api/client.ts`
+   - Set `VITE_USE_MOCKS` default to `false` and remove the flag
+5. **Final end-to-end test** — login → create case → add articles → wait for graph build → upload PDF → wait for analysis → verify evidence + gaps appear → check readiness score updates
 
 ---
 
@@ -1160,11 +1254,11 @@ Login credentials for demo: `admin` / `scaffold2026`
 - `backend/` directory created with `app/`, `app/routers/`, `app/services/`, `uploads/`
 - `requirements.txt` written (all 15 pinned packages, including `bcrypt==3.2.2` fix — see below)
 - `schema.sql` written and applied — all 9 tables and 7 indexes live in the `scaffold` database
-- `.env.example` written; `.env` copied from it (real API keys still needed)
+- `.env.example` written; `.env` copied from it (ANTHROPIC_API_KEY needed)
 - `.gitignore` written for backend
 
 **Backend skeleton (Hour 0.5–1)**
-- `app/config.py` — Pydantic Settings, reads all 9 env vars from `.env`
+- `app/config.py` — Pydantic Settings, reads all 7 env vars from `.env`
 - `app/database.py` — sync SQLAlchemy engine, `SessionLocal`, `Base`
 - `app/models.py` — ORM classes for all 9 tables mirroring `schema.sql`
 - `app/auth.py` — `create_access_token`, `verify_password`, `hash_password`
@@ -1195,6 +1289,39 @@ Login credentials for demo: `admin` / `scaffold2026`
 - `app/main.py` — jobs router imported and mounted at `/api`.
 
 **Verified working:** app imports cleanly; `/api/jobs/{job_id}` route registered and confirmed via `python -c` import check.
+
+**CELLAR + Claude (Hours 2–3) ✅ COMPLETE**
+- `app/services/cellar.py` — EUR-Lex HTML fetching + CELLAR SPARQL querying for case law
+  - `fetch_article_text()` — parses EUR-Lex HTML with fallback logic (ti-art → sti-art → text search)
+  - `fetch_related_case_law()` — queries SPARQL for top 10 CJEU cases mentioning regulation + article
+- `app/services/claude.py` — Claude 3.5 LLM integration
+  - `build_argument_graph()` — formats articles + case law, calls Claude, parses JSON with elements/propositions
+  - `analyse_document()` — truncates doc to 50k chars, maps evidence to propositions, suggests gaps
+  - `_parse_json()` — strips markdown fences, parses JSON with error handling
+- `app/services/graph_builder.py` — full pipeline orchestrator
+  - `run_graph_build()` — fetch articles → case law → Claude → save elements/propositions to DB
+  - Runs in BackgroundTasks with error handling (failed jobs logged to DB)
+  - Updates case.has_graph=true and status="In Progress" on success
+- `app/routers/articles.py` — two endpoints
+  - `POST /api/cases/{case_id}/articles` — creates build_graph job, returns job_id for polling
+  - `GET /api/cases/{case_id}/articles` — returns all case articles for a case
+- Updated `app/config.py` to use ANTHROPIC_API_KEY (removed Gemini/CELLAR auth fields)
+- Updated `requirements.txt` — replaced google-generativeai with anthropic==0.39.0
+- Updated `.env` — corrected API key field
+- Added `JobIdResponse` schema to `schemas.py`
+- Fixed UUID validation in articles and jobs routers (prevents 500 on malformed IDs)
+- Updated `app/main.py` to register articles router
+
+**Verified working (full integration test):**
+- ✅ Login → token issued
+- ✅ Case creation → defaults applied
+- ✅ POST /articles → job created and graph build queued
+- ✅ Job polling → transitions pending → running → done
+- ✅ Articles fetched from EUR-Lex (Art. 82, 32 tested)
+- ✅ Claude builds 4 elements + 11-12 propositions from articles
+- ✅ Database state updated (elements/propositions created, case.has_graph set)
+- ✅ Error handling: missing case → 404, bad job ID → 404, no auth → 403
+- ✅ API contracts match frontend types exactly (CaseSetup flow verified)
 
 **Frontend (clickable mock prototype — NOT yet integrated)**
 
@@ -1230,14 +1357,18 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 ### What's next (follow the build order in §18)
 
-| Hour | Task | Files |
+| Hour | Task | Status |
 |---|---|---|
-| **2–3** | CELLAR service + article fetch + graph build | `app/services/cellar.py`, `app/services/gemini.py`, `app/services/graph_builder.py`, `app/routers/articles.py` |
-| **3–4** | Document upload + PDF extraction + LLM analysis | `app/services/pdf.py`, `app/services/doc_analyser.py`, `app/routers/documents.py` |
-| **4–4.5** | Graph CRUD + evidence + gaps | `app/routers/graph.py`, `app/routers/evidence.py`, `app/routers/gaps.py` |
-| **4.5–5** | Readiness + proposition status auto-update | `app/services/readiness.py` |
-| **5–7.5** | **Frontend integration** — see dedicated stage below. | `frontend/src/api/client.ts`, `src/types/`, `pages/*`, `features/*` |
-| **7.5–8** | End-to-end test against the live backend, fix blockers | — |
+| **0–0.5** | Repo setup, schema, .env | ✅ Done |
+| **0.5–1** | FastAPI skeleton, auth | ✅ Done |
+| **1–1.5** | Cases CRUD | ✅ Done |
+| **1.5–2** | Jobs polling | ✅ Done |
+| **2–3** | CELLAR + Claude + articles endpoints | ✅ Done |
+| **3–4** | Document upload + PDF extraction + LLM analysis | 🔜 Next |
+| **4–4.5** | Graph CRUD + evidence + gaps | 🔜 Next |
+| **4.5–5** | Readiness + proposition status auto-update | 🔜 Next |
+| **5–7.5** | **Frontend integration** | 🔜 Next |
+| **7.5–8** | End-to-end test + blockers | 🔜 Next |
 
 ---
 
@@ -1279,5 +1410,4 @@ uvicorn app.main:app --reload --port 8000
 npm run dev
 ```
 
-`.env` needs real values for `GEMINI_API_KEY`, `CELLAR_USERNAME`, `CELLAR_PASSWORD` before any AI features work.
-- Webhook/SSE instead of polling
+`.env` needs a real `ANTHROPIC_API_KEY` for Claude AI features to work.

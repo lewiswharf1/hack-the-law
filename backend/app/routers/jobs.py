@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -34,6 +35,11 @@ def create_job(
 
 @router.get("/jobs/{job_id}", response_model=schemas.JobStatus)
 def get_job(job_id: str, db: Session = Depends(get_db)):
+    try:
+        UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
     job = db.query(models.Job).filter_by(id=job_id).first()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
