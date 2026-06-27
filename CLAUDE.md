@@ -1149,4 +1149,70 @@ Login credentials for demo: `admin` / `scaffold2026`
 - Multi-user with firm workspaces and roles
 - Document drafting editor connected to argument graph
 - Semantic search over evidence (pgvector)
+
+---
+
+## 21. Handoff
+
+### What's done
+
+**Setup (Hour 0–0.5)**
+- `backend/` directory created with `app/`, `app/routers/`, `app/services/`, `uploads/`
+- `requirements.txt` written (all 15 pinned packages, including `bcrypt==3.2.2` fix — see below)
+- `schema.sql` written and applied — all 9 tables and 7 indexes live in the `scaffold` database
+- `.env.example` written; `.env` copied from it (real API keys still needed)
+- `.gitignore` written for backend
+
+**Backend skeleton (Hour 0.5–1)**
+- `app/config.py` — Pydantic Settings, reads all 9 env vars from `.env`
+- `app/database.py` — sync SQLAlchemy engine, `SessionLocal`, `Base`
+- `app/models.py` — ORM classes for all 9 tables mirroring `schema.sql`
+- `app/auth.py` — `create_access_token`, `verify_password`, `hash_password`
+- `app/deps.py` — `get_db()`, `get_current_user()` with Bearer JWT decode
+- `app/main.py` — FastAPI app, CORS allowing `localhost:5173`, auth router mounted at `/api`
+- `app/routers/auth.py` — `POST /api/auth/login` verified returning a JWT
+- `seed.py` — admin user seeded (`admin` / `scaffold2026`)
+
+**Verified working:** `POST /api/auth/login` returns a valid JWT. Server starts cleanly with `uvicorn app.main:app --port 8000`.
+
+---
+
+### Known fixes applied (don't revert)
+
+| Issue | Fix |
+|---|---|
+| Local Postgres has no `postgres` role | `DATABASE_URL` in `.env` uses `macbook` (the macOS username), not `postgres:postgres` |
+| `passlib[bcrypt]==1.7.4` incompatible with `bcrypt>=4.0` — crashes on `bcrypt.__about__` | `bcrypt==3.2.2` pinned explicitly in `requirements.txt` |
+| `TIMESTAMPTZ` not a valid SQLAlchemy dialect import | Replaced with `TS = DateTime(timezone=True)` alias in `models.py` |
+
+---
+
+### What's next (follow the build order in §18)
+
+| Hour | Task | Files |
+|---|---|---|
+| **1–1.5** | Cases CRUD | `app/schemas.py`, `app/routers/cases.py` |
+| **1.5–2** | Jobs polling endpoint | `app/routers/jobs.py` |
+| **2–3** | CELLAR service + article fetch + graph build | `app/services/cellar.py`, `app/services/gemini.py`, `app/services/graph_builder.py`, `app/routers/articles.py` |
+| **3–4** | Document upload + PDF extraction + LLM analysis | `app/services/pdf.py`, `app/services/doc_analyser.py`, `app/routers/documents.py` |
+| **4–4.5** | Graph CRUD + evidence + gaps | `app/routers/graph.py`, `app/routers/evidence.py`, `app/routers/gaps.py` |
+| **4.5–5** | Readiness + proposition status auto-update | `app/services/readiness.py` |
+| **5–6.5** | Frontend: `api.ts`, login gate, wire CaseSetup, CasesList, graph view | `frontend/src/api.ts`, `App.tsx`, `CaseSetup.tsx`, `CasesList.tsx` |
+| **6.5–7.5** | Frontend: wire document upload, CaseOverview stats | `UploadModal.tsx`, `CaseOverview.tsx` |
+| **7.5–8** | End-to-end test, fix blockers | — |
+
+---
+
+### Environment setup for next session
+
+```bash
+# Start backend (from backend/)
+source venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+
+# Start frontend (from frontend/)
+npm run dev
+```
+
+`.env` needs real values for `GEMINI_API_KEY`, `CELLAR_USERNAME`, `CELLAR_PASSWORD` before any AI features work.
 - Webhook/SSE instead of polling
