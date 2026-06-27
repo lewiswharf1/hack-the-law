@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom"
 import { api } from "../api/client"
 import type { CaseSummary, NewCaseDetails } from "../types"
 import { Button, Card, Modal, ReadinessBar } from "../components/ui"
+import { Trash2 } from "lucide-react"
 
 const STATUS_DOT: Record<string, string> = {
   Draft: "bg-muted",
@@ -22,6 +23,8 @@ export default function CasesList() {
   const navigate = useNavigate()
   const [cases, setCases] = useState<CaseSummary[] | null>(null)
   const [showNew, setShowNew] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Load cases on mount — GET /api/cases
   useEffect(() => {
@@ -33,6 +36,17 @@ export default function CasesList() {
     setShowNew(false)
     // New case has no graph yet → go straight to article selection / build.
     navigate(`/cases/${created.id}/setup`)
+  }
+
+  async function handleDelete(caseId: string) {
+    setDeleting(true)
+    try {
+      await api.deleteCase(caseId)
+      setCases((prev) => prev ? prev.filter((c) => c.id !== caseId) : null)
+      setDeleteConfirm(null)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -58,7 +72,19 @@ export default function CasesList() {
               onClick={() =>
                 navigate(c.has_graph ? `/cases/${c.id}` : `/cases/${c.id}/setup`)
               }
+              className="relative"
             >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDeleteConfirm(c.id)
+                }}
+                className="absolute right-4 top-4 p-1 text-muted hover:text-error transition-colors"
+                title="Delete case"
+              >
+                <Trash2 size={16} />
+              </button>
+
               <div className="mb-3 flex items-center gap-2">
                 <span className={`h-2 w-2 rounded-full ${STATUS_DOT[c.status] ?? "bg-muted"}`} />
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -99,6 +125,14 @@ export default function CasesList() {
         open={showNew}
         onClose={() => setShowNew(false)}
         onCreate={handleCreate}
+      />
+
+      <DeleteConfirmModal
+        open={!!deleteConfirm}
+        caseName={cases?.find((c) => c.id === deleteConfirm)?.short_name}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
+        loading={deleting}
       />
     </div>
   )
@@ -191,5 +225,47 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-2 block text-sm font-semibold text-navy">{label}</span>
       {children}
     </label>
+  )
+}
+
+function DeleteConfirmModal({
+  open,
+  caseName,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  open: boolean
+  caseName?: string
+  onClose: () => void
+  onConfirm: () => Promise<void>
+  loading: boolean
+}) {
+  async function handleConfirm() {
+    await onConfirm()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Delete case">
+      <div className="space-y-4">
+        <p className="text-sm text-muted">
+          Are you sure you want to delete <span className="font-semibold text-navy">"{caseName}"</span>? This action cannot be undone and all documents, evidence, and gaps will be permanently removed.
+        </p>
+        <div className="flex justify-end gap-3 border-t border-border pt-4">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            className="!bg-error hover:!bg-error-dark"
+            onClick={handleConfirm}
+            disabled={loading}
+          >
+            {loading ? "Deleting…" : "Delete case"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }

@@ -77,6 +77,10 @@ export const api = {
     return request("PUT", `/cases/${id}`, body)
   },
 
+  deleteCase(id: string): Promise<{ ok: boolean }> {
+    return request("DELETE", `/cases/${id}`)
+  },
+
   // ── Articles & graph build (async job) ────────────────────────────────────
   // POST /api/cases/{id}/articles -> { job_id }. Backend runs CELLAR->Claude->DB
   // in BackgroundTasks; frontend polls GET /jobs/{id}. (CLAUDE.md §7, §13)
