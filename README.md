@@ -494,28 +494,3 @@ This is a **hackathon prototype**, not a production codebase. For future contrib
 2. Follow the tech stack choices (FastAPI, SQLAlchemy, React, Tailwind)
 3. Keep endpoints aligned with the schema in `CLAUDE.md` (§7)
 4. Test end-to-end: backend + frontend together
-
-## License
-
-[Specify your license here — e.g., MIT, Apache 2.0, or proprietary]
-
-## Credits
-
-Built by [Your Name/Team] during [Hackathon Name], 2026.
-
-- **LLM:** Claude 3.5 Haiku (Anthropic)
-- **Data:** EUR-Lex CELLAR API (European Commission)
-- **Design:** Tailwind CSS v4
-
-## Support & Feedback
-
-For issues, feature requests, or contributions:
-- Open a GitHub issue
-- Email: [contact email]
-- Slack: [workspace link] (if applicable)
-
----
-
-**Status:** MVP complete. Next: integrate user feedback, expand to multi-tenancy, add export functionality.
-
-Last updated: 2026-06-27
