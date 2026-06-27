@@ -10,6 +10,7 @@
 */
 import { useCallback, useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { AlertCircle, Check, Edit } from "lucide-react"
 import { api } from "../api/client"
 import type { CaseDetail, DocumentItem, Gap } from "../types"
 import { Button, ReadinessBar, Spinner } from "../components/ui"
@@ -139,10 +140,20 @@ export default function CaseWorkspace() {
             {tab === "graph" && caseDetail.has_graph && (
               <Button
                 variant="secondary"
-                className="!py-2 text-xs"
+                className="!py-2 text-xs flex items-center gap-1"
                 onClick={() => setEditMode(!editMode)}
               >
-                {editMode ? "✓ Done Editing" : "✎ Edit Graph"}
+                {editMode ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Done Editing
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4" />
+                    Edit Graph
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -152,8 +163,9 @@ export default function CaseWorkspace() {
       {/* Tab content */}
       <div className="mx-auto max-w-[1200px] px-6 py-8">
         {editMode && tab === "graph" && (
-          <div className="mb-4 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning">
-            ⚠️ Edit mode — changes save immediately
+          <div className="mb-4 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm text-warning flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            Edit mode — changes save immediately
           </div>
         )}
         {tab === "overview" && (

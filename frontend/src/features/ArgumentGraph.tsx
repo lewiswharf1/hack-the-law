@@ -19,6 +19,7 @@
     DELETE /api/evidence/{id}                  -> delete evidence
 */
 import { useEffect, useState, type FormEvent } from "react"
+import { Edit, Trash2, Plus } from "lucide-react"
 import { api } from "../api/client"
 import type { DocumentItem, Element, ElementStatus, Evidence, EvidenceClassification, Proposition } from "../types"
 import {
@@ -255,18 +256,18 @@ function ElementCard({
               <div className="flex gap-1">
                 <button
                   onClick={() => setEditingEl(true)}
-                  className="text-muted hover:text-navy transition-colors"
+                  className="text-muted hover:text-navy transition-colors p-1"
                   title="Edit"
                 >
-                  ✎
+                  <Edit className="w-4 h-4" />
                 </button>
                 <button
                   onClick={onDeleteElement}
-                  className="text-muted hover:text-error transition-colors"
+                  className="text-muted hover:text-error transition-colors p-1"
                   title="Delete"
                   disabled={loadingOp === `delete-element-${element.id}`}
                 >
-                  🗑
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -312,11 +313,11 @@ function ElementCard({
                   />
                   <button
                     onClick={() => onDeleteProposition(p)}
-                    className="text-xs text-muted hover:text-error transition-colors px-2 py-1"
+                    className="text-xs text-muted hover:text-error transition-colors px-2 py-1 flex items-center gap-1"
                     title="Delete"
                     disabled={isDeleting}
                   >
-                    {isDeleting ? "…" : "🗑"}
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -419,10 +420,11 @@ function PropositionEditButton({
   return (
     <button
       onClick={() => setEditing(true)}
-      className="text-xs text-muted hover:text-navy transition-colors px-2 py-1"
+      className="text-xs text-muted hover:text-navy transition-colors px-2 py-1 flex items-center gap-1"
       title="Edit"
     >
-      ✎ Edit
+      <Edit className="w-3 h-3" />
+      Edit
     </button>
   )
 }
@@ -470,9 +472,10 @@ function AddPropositionForm({
     return (
       <button
         onClick={() => setShowing(true)}
-        className="text-xs text-primary hover:underline"
+        className="text-xs text-primary hover:underline flex items-center gap-1"
       >
-        ＋ Add proposition
+        <Plus className="w-3 h-3" />
+        Add proposition
       </button>
     )
   }
@@ -547,9 +550,10 @@ function AddElementForm({ caseId, onAdded, setLoadingOp }: AddElementFormProps) 
     return (
       <button
         onClick={() => setShowing(true)}
-        className="text-sm text-primary hover:underline font-semibold"
+        className="text-sm text-primary hover:underline font-semibold flex items-center gap-1"
       >
-        ＋ Add element
+        <Plus className="w-4 h-4" />
+        Add element
       </button>
     )
   }
@@ -708,10 +712,11 @@ function EvidencePanel({
                   />
                   <button
                     onClick={() => handleDeleteEvidence(ev.id)}
-                    className="text-muted hover:text-error transition-colors px-2 py-1"
+                    className="text-muted hover:text-error transition-colors px-2 py-1 flex items-center gap-1"
                     disabled={loadingOp === `delete-evidence-${ev.id}`}
                   >
-                    {loadingOp === `delete-evidence-${ev.id}` ? "…" : "🗑 Delete"}
+                    <Trash2 className="w-3 h-3" />
+                    {loadingOp === `delete-evidence-${ev.id}` ? "Deleting…" : "Delete"}
                   </button>
                 </div>
               )}
@@ -739,9 +744,10 @@ function EvidencePanel({
             ) : (
               <button
                 onClick={() => setAddingEvidence(true)}
-                className="w-full rounded-md border border-border bg-subtle px-3 py-2 text-xs font-semibold text-navy hover:bg-border/50 transition-colors"
+                className="w-full rounded-md border border-border bg-subtle px-3 py-2 text-xs font-semibold text-navy hover:bg-border/50 transition-colors flex items-center justify-center gap-1"
               >
-                ＋ Add evidence manually
+                <Plus className="w-3 h-3" />
+                Add evidence manually
               </button>
             )}
           </div>
@@ -749,7 +755,7 @@ function EvidencePanel({
       ) : (
         <Button
           variant="secondary"
-          className="mt-4 w-full !py-2 text-xs"
+          className="mt-4 w-full !py-2 text-xs flex items-center justify-center gap-1"
           onClick={() =>
             alert(
               "Manual evidence entry → POST /api/propositions/" +
@@ -758,7 +764,8 @@ function EvidencePanel({
             )
           }
         >
-          ＋ Add evidence manually
+          <Plus className="w-3 h-3" />
+          Add evidence manually
         </Button>
       )}
     </div>
@@ -853,10 +860,11 @@ function EvidenceEditButton({
   return (
     <button
       onClick={() => setEditing(true)}
-      className="text-muted hover:text-navy transition-colors px-2 py-1"
+      className="text-muted hover:text-navy transition-colors px-2 py-1 flex items-center gap-1"
       title="Edit"
     >
-      ✎ Edit
+      <Edit className="w-3 h-3" />
+      Edit
     </button>
   )
 }

@@ -8,6 +8,7 @@
     PUT  /api/gaps/{id}              (resolve / override severity)
 */
 import { useState, type FormEvent } from "react"
+import { Trash2 } from "lucide-react"
 import { api } from "../api/client"
 import type { Gap, GapSeverity } from "../types"
 import { Button, Card, Modal, SeverityBadge } from "../components/ui"
@@ -98,11 +99,12 @@ export default function GapsPanel({
               {editMode && (
                 <button
                   onClick={() => deleteGap(g)}
-                  className="text-xs text-muted hover:text-error transition-colors px-2 py-1 ml-auto"
+                  className="text-xs text-muted hover:text-error transition-colors px-2 py-1 ml-auto flex items-center gap-1"
                   title="Delete"
                   disabled={deleting === g.id}
                 >
-                  {deleting === g.id ? "…" : "🗑 Delete"}
+                  <Trash2 className="w-3 h-3" />
+                  {deleting === g.id ? "Deleting…" : "Delete"}
                 </button>
               )}
             </div>
