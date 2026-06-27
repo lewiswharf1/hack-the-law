@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scaffold — Ponderation node mockup</title>
+<style>
+  :root{
+    --bg:#E8F4F8; --navy:#1a1a2e; --white:#fff; --subtle:#F5F5F5; --gray:#9A9A9A;
+    --border:#E0E0E0; --purple:#7C3AED; --green:#10B981; --red:#EF4444;
+    --teal:#06B6D4; --amber:#F59E0B;
+    --serif:"Garamond","Times New Roman",serif;
+    --sans:-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+    --shadow-hi:0 4px 6px rgba(0,0,0,.12),0 2px 4px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--navy);font-family:var(--sans);font-size:16px;line-height:1.5}
+  h1,h2,h3,h4{font-family:var(--serif);font-weight:400;margin:0}
+  .topbar{height:60px;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .mark{width:26px;height:26px;border-radius:6px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:16px}
+  .brand b{font-weight:600;font-size:15px;letter-spacing:.2px}
+  .casebar{padding:14px 24px 0;max-width:1280px;margin:0 auto}
+  .casebar .crumbs{font-size:12px;color:var(--gray)}
+  .casebar h1{font-size:26px;margin:2px 0 2px}
+  .casebar .meta{font-size:13px;color:var(--gray)}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-top:12px}
+  .tab{padding:10px 14px;font-size:13px;font-weight:600;color:var(--gray);border-bottom:2px solid transparent;cursor:default}
+  .tab.active{color:var(--navy);border-bottom-color:var(--navy)}
+  .wrap{max-width:1280px;margin:0 auto;padding:20px 24px 48px;display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:20px;align-items:start}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+
+  .panel-title{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin-bottom:10px}
+
+  /* graph column */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--navy)}
+  .legend .chip{display:flex;align-items:center;gap:7px;background:var(--white);border:1px solid var(--border);border-radius:20px;padding:5px 11px}
+  .swatch{width:12px;height:12px;border-radius:3px;border:2px solid var(--border)}
+  .swatch.sub{border-color:var(--gray)}
+  .swatch.pond{border-color:var(--purple);background:#F3EEFE;border-radius:3px;transform:rotate(45deg);width:10px;height:10px}
+
+  .element{background:var(--white);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+  .element>.ehead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .elabel{font-size:11px;font-weight:700;color:#fff;background:var(--navy);border-radius:5px;padding:3px 7px;letter-spacing:.5px}
+  .etitle{font-family:var(--serif);font-size:20px}
+  .esource{font-size:12px;color:var(--gray);margin:2px 0 12px 0}
+  .props{display:flex;flex-direction:column;gap:10px;padding-left:14px;border-left:2px dashed #D1D5DB;margin-left:6px}
+
+  .node{position:relative;border-radius:8px;padding:12px 14px;cursor:pointer;transition:all .15s ease;background:#F9F9F9;border-left:3px solid var(--gray)}
+  .node:hover{box-shadow:var(--shadow-hi);transform:translateY(-1px)}
+  .node .nlabel{font-size:11px;font-weight:700;color:var(--gray);letter-spacing:.5px}
+  .node .ntitle{font-size:14px;margin:3px 0 8px;color:var(--navy);line-height:1.4}
+  .node .nfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--gray)}
+  .node.sel{outline:0;border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
+  .node.est{border-left-color:var(--green)}
+  .node.con{border-left-color:var(--amber)}
+  .node.gap{border-left-color:var(--gray)}
+
+  /* ponderation node: distinct */
+  .node.pond{background:#F6F2FE;border:2px solid var(--purple);border-left:6px solid var(--purple);padding:12px 14px}
+  .node.pond .nlabel{color:var(--purple)}
+  .pondtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--purple);background:#EDE6FD;border-radius:5px;padding:3px 7px}
+  .scale{font-size:14px;line-height:1}
+
+  .badge{font-size:11px;font-weight:600;border-radius:11px;padding:3px 10px;white-space:nowrap}
+  .b-est{background:#E7F8F1;color:#0a7a55}
+  .b-con{background:#FEF3DD;color:#9a6600}
+  .b-gap{background:#EFEFEF;color:#6b6b6b}
+  .b-adv{background:#FDECEC;color:#b42323}
+  .b-pond{background:#EDE6FD;color:#5b34c0}
+
+  .evchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;background:#fff;border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--navy)}
+  .dot{width:7px;height:7px;border-radius:50%}
+  .dot.sup{background:var(--green)} .dot.adv{background:var(--red)} .dot.neu{background:var(--gray)}
+
+  /* right detail panel */
+  .detail{background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:0;position:sticky;top:16px;overflow:hidden}
+  .dhead{padding:18px 20px;border-bottom:1px solid var(--border)}
+  .dhead.pond{background:#F6F2FE;border-bottom:1px solid #E2D6FB}
+  .dhead .dlabel{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--gray)}
+  .dhead.pond .dlabel{color:var(--purple)}
+  .dhead h3{font-size:19px;margin:6px 0 8px;line-height:1.25}
+  .dbody{padding:18px 20px}
+  .kv{font-size:12px;color:var(--gray);margin-bottom:3px}
+  .mode-note{font-size:12px;line-height:1.5;background:var(--subtle);border-radius:6px;padding:10px 12px;color:#555;margin-top:6px}
+  .mode-note b{color:var(--navy)}
+
+  .section-h{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin:18px 0 8px}
+
+  /* subsumption evidence list */
+  .ev{border:1px solid var(--border);border-left:3px solid var(--gray);border-radius:6px;padding:11px 12px;margin-bottom:10px}
+  .ev.sup{border-left-color:var(--green)} .ev.adv{border-left-color:var(--red)}
+  .ev .extitle{font-size:12px;font-weight:600}
+  .ev .exq{font-size:13px;font-style:italic;color:#333;margin:5px 0}
+  .ev .exmeta{display:flex;justify-content:space-between;font-size:11px;color:var(--gray)}
+  .empty{font-size:13px;color:var(--gray);background:var(--subtle);border-radius:6px;padding:14px;text-align:center}
+
+  /* conflict / principles */
+  .conflict{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;margin:6px 0 4px}
+  .side{border:1px solid var(--border);border-radius:8px;padding:10px 11px;background:#fff}
+  .side .who{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+  .side.ctrl .who{color:var(--teal)} .side.subj .who{color:var(--purple)}
+  .side .pr{font-size:13px;line-height:1.35;margin-bottom:5px}
+  .side .art{font-size:11px;color:var(--gray)}
+  .vs{display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;color:var(--gray);font-size:13px}
+
+  /* jurisdiction selector */
+  .jur{display:flex;align-items:center;gap:10px;margin:18px 0 6px}
+  .jur label{font-size:12px;font-weight:600;color:var(--navy)}
+  select{font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--navy);flex:1}
+  select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+  .jurauth{font-size:11px;color:var(--gray);margin-bottom:6px}
+
+  /* test steps */
+  .step{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+  .step.open{border-color:var(--purple)}
+  .step .shead{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}
+  .step .snum{width:22px;height:22px;flex:none;border-radius:50%;background:#EDE6FD;color:var(--purple);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .step .sname{font-size:13px;font-weight:600;flex:1}
+  .step .sverdict{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:10px;padding:3px 8px}
+  .sv-met{background:#E7F8F1;color:#0a7a55} .sv-con{background:#FEF3DD;color:#9a6600}
+  .sv-unmet{background:#FDECEC;color:#b42323} .sv-open{background:#EFEFEF;color:#6b6b6b}
+  .step .caret{color:var(--gray);font-size:12px;transition:transform .15s}
+  .step.open .caret{transform:rotate(90deg)}
+  .sbody{display:none;padding:0 12px 12px 44px}
+  .step.open .sbody{display:block}
+  .shint{font-size:12px;color:#555;line-height:1.45;margin:0 0 10px}
+  .basis{display:flex;gap:6px;margin-bottom:8px}
+  .basis button{font-family:var(--sans);font-size:11px;font-weight:600;border:1px solid var(--border);background:#fff;color:var(--gray);border-radius:6px;padding:5px 9px;cursor:pointer}
+  .basis button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .ev-slot,.arg-slot{margin-bottom:8px}
+  .attached{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .addev{font-family:var(--sans);font-size:11px;font-weight:600;color:var(--teal);background:#E9FAFD;border:1px dashed var(--teal);border-radius:6px;padding:6px 9px;cursor:pointer}
+  textarea{width:100%;font-family:var(--sans);font-size:13px;line-height:1.5;border:1px solid var(--border);border-radius:6px;padding:9px 10px;resize:vertical;min-height:62px;color:var(--navy)}
+  textarea:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+  .verdict-pick{display:flex;gap:5px;margin-top:9px}
+  .verdict-pick button{font-family:var(--sans);font-size:11px;font-weight:600;border:1px solid var(--border);background:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;color:var(--gray)}
+  .verdict-pick button.pick-met.on{background:var(--green);border-color:var(--green);color:#fff}
+  .verdict-pick button.pick-con.on{background:var(--amber);border-color:var(--amber);color:#fff}
+  .verdict-pick button.pick-unmet.on{background:var(--red);border-color:var(--red);color:#fff}
+  .verdict-pick button.pick-open.on{background:var(--gray);border-color:var(--gray);color:#fff}
+
+  .nodeverdict{margin-top:16px;border-radius:8px;padding:14px;background:#F6F2FE;border:1px solid #E2D6FB}
+  .nodeverdict .nvh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--purple);margin-bottom:6px}
+  .nodeverdict .nvtext{font-size:14px;line-height:1.45;color:var(--navy)}
+  .nodeverdict .nvrule{font-size:12px;color:#666;margin-top:8px;line-height:1.45}
+  .foothint{font-size:11px;color:var(--gray);margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="mark">S</span><b>Scaffold</b></div>
+    <div style="font-size:12px;color:#9A9A9A">Mockup · ponderation node concept</div>
+  </div>
+
+  <div class="casebar">
+    <div class="crumbs">Cases / Müller v. DataCo</div>
+    <h1>Müller v. DataCo — Art. 82 GDPR compensation claim</h1>
+    <div class="meta">Regional Court · Claim: Art. 82 GDPR (right to compensation) · Lead: LW · Readiness 38%</div>
+    <div class="tabs">
+      <div class="tab">Overview</div>
+      <div class="tab active">Argument graph</div>
+      <div class="tab">Documents</div>
+      <div class="tab">Gaps</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- GRAPH -->
+    <div>
+      <div class="panel-title">Argument graph — eagle's view</div>
+      <div class="legend">
+        <div class="chip"><span class="swatch sub"></span> Subsumption node · maps to exhibits</div>
+        <div class="chip"><span class="swatch pond"></span> Ponderation node · balancing test</div>
+      </div>
+
+      <!-- E1 -->
+      <div class="element">
+        <div class="ehead"><span class="elabel">E1</span><span class="etitle">Infringement of the GDPR by the controller</span></div>
+        <div class="esource">Source: Art. 82(2) GDPR · requires an unlawful processing operation</div>
+        <div class="props">
+          <div class="node sub est" data-node="E1-P1" onclick="select('E1-P1')">
+            <div class="nlabel">E1-P1</div>
+            <div class="ntitle">The defendant is a “controller” within Art. 4(7) GDPR</div>
+            <div class="nfoot"><span class="evchip"><span class="dot sup"></span>Exhibit 3</span><span class="badge b-est">Established</span></div>
+          </div>
+
+          <div class="node pond con" data-node="E1-P2" onclick="select('E1-P2')">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div class="nlabel">E1-P2</div>
+              <span class="pondtag"><span class="scale">⚖</span> Ponderation</span>
+            </div>
+            <div class="ntitle">The processing was unlawful — the Art. 6(1)(f) legitimate-interests balancing fails</div>
+            <div class="nfoot">
+              <span style="font-size:11px;color:#7C3AED">Balancing test · no single exhibit</span>
+              <span class="badge b-con" id="graph-verdict-badge">Contested</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E2 -->
+      <div class="element">
+        <div class="ehead"><span class="elabel">E2</span><span class="etitle">Damage suffered by the data subject</span></div>
+        <div class="esource">Source: Art. 82(1) GDPR · material or non-material damage</div>
+        <div class="props">
+          <div class="node sub gap" data-node="E2-P1" onclick="select('E2-P1')">
+            <div class="nlabel">E2-P1</div>
+            <div class="ntitle">The claimant suffered non-material damage (distress / loss of control)</div>
+            <div class="nfoot"><span style="font-size:11px">No evidence mapped</span><span class="badge b-gap">Gap</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E3 -->
+      <div class="element">
+        <div class="ehead"><span class="elabel">E3</span><span class="etitle">Causal link between infringement and damage</span></div>
+        <div class="esource">Source: Art. 82(1) GDPR · damage “as a result of” the infringement</div>
+        <div class="props">
+          <div class="node sub gap" data-node="E3-P1" onclick="select('E3-P1')">
+            <div class="nlabel">E3-P1</div>
+            <div class="ntitle">The distress flows causally from the unlawful processing</div>
+            <div class="nfoot"><span style="font-size:11px">No evidence mapped</span><span class="badge b-gap">Gap</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL -->
+    <div id="detail" class="detail"></div>
+  </div>
+
+<script>
+/* ---------- node data ---------- */
+const SUB = {
+  'E1-P1':{el:'E1',title:'The defendant is a “controller” within Art. 4(7) GDPR',source:'Art. 4(7) GDPR',status:'Established',
+    ev:[{ex:'Exhibit 3 — Supervisory-authority register',q:'“DataCo GmbH is recorded as the controller for the customer-analytics processing.”',ref:'p.2, entry 14',cls:'sup'}]},
+  'E2-P1':{el:'E2',title:'The claimant suffered non-material damage (distress / loss of control)',source:'Art. 82(1) GDPR',status:'Gap',ev:[]},
+  'E3-P1':{el:'E3',title:'The distress flows causally from the unlawful processing',source:'Art. 82(1) GDPR',status:'Gap',ev:[]},
+};
+
+/* ---------- jurisdiction test schemas ---------- */
+const TESTS = {
+  eu:{name:'EU proportionality',authority:'Art. 52(1) Charter · CJEU · GDPR Art. 6(1)(f) three-part test',
+    steps:[
+      {id:'aim',name:'Legitimate aim / interest',hint:'Is a real, present and lawful interest pursued by the controller? (Art. 6(1)(f), first limb.)'},
+      {id:'suit',name:'Suitability',hint:'Is the processing actually apt to achieve that interest?'},
+      {id:'nec',name:'Necessity — least restrictive means',hint:'Could a less intrusive measure (e.g. pseudonymisation, narrower scope) achieve the same aim? (Art. 6(1)(f), second limb.)'},
+      {id:'strict',name:'Proportionality stricto sensu',hint:'Do the controller’s interests override the data subject’s rights and freedoms? The balancing proper — weighed, not proven by one exhibit.'},
+    ]},
+  de:{name:'German Verhältnismäßigkeit',authority:'Three-prong test · Alexy’s Law of Balancing',
+    steps:[
+      {id:'aim',name:'Legitimer Zweck (legitimate purpose)',hint:'Does the measure pursue a constitutionally legitimate purpose?'},
+      {id:'suit',name:'Geeignetheit (suitability)',hint:'Is the means suitable to further that purpose?'},
+      {id:'nec',name:'Erforderlichkeit (necessity)',hint:'Is there no equally effective, less intrusive means available?'},
+      {id:'strict',name:'Angemessenheit (proportionality stricto sensu)',hint:'Abwägung — the greater the interference with one principle, the weightier the justifying interest must be.'},
+    ]},
+  co:{name:'Juicio integrado de proporcionalidad',authority:'Corte Constitucional de Colombia (p. ej. C-093/2001)',
+    steps:[
+      {id:'aim',name:'Fin legítimo / imperioso',hint:'¿Persigue la medida un fin constitucionalmente legítimo (o imperioso, según la intensidad del juicio)?'},
+      {id:'suit',name:'Idoneidad',hint:'¿Es el medio adecuado para alcanzar el fin?'},
+      {id:'nec',name:'Necesidad',hint:'¿Existe un medio alternativo menos lesivo e igualmente efectivo?'},
+      {id:'strict',name:'Proporcionalidad en sentido estricto',hint:'Ponderación: ¿los beneficios superan la afectación de los derechos en juego?'},
+    ]},
+  echr:{name:'ECtHR — Art. 8(2) ECHR',authority:'“Necessary in a democratic society” · margin of appreciation',
+    steps:[
+      {id:'aim',name:'Legitimate aim',hint:'Does the interference pursue one of the aims listed in Art. 8(2) (e.g. rights of others, prevention of crime)?'},
+      {id:'suit',name:'In accordance with the law',hint:'Is the interference based on an accessible and foreseeable legal basis?'},
+      {id:'nec',name:'Necessary in a democratic society',hint:'Does it answer a pressing social need?'},
+      {id:'strict',name:'Proportionality / margin of appreciation',hint:'Is the interference proportionate, within the State’s margin of appreciation?'},
+    ]},
+};
+
+/* ---------- live balancing state (seeded to tell the Art. 6(1)(f) story) ---------- */
+const ST = {
+  jur:'eu',
+  steps:{
+    aim:{basis:'arg',verdict:'met',exhibits:['Exhibit 7 — IT security policy'],
+      arg:'DataCo asserts a fraud-prevention interest in profiling login behaviour. A legitimate, present interest is conceded.'},
+    suit:{basis:'arg',verdict:'met',exhibits:[],
+      arg:'Behavioural profiling is, on its face, apt to detect anomalous logins — suitability is not seriously contested.'},
+    nec:{basis:'both',verdict:'contested',exhibits:['Exhibit 9 — Claimant’s expert report'],
+      arg:'Claimant argues pseudonymised device-fingerprinting would have achieved the same fraud-prevention aim with far less intrusion — so full identified profiling was not necessary.'},
+    strict:{basis:'arg',verdict:'open',exhibits:[],
+      arg:''},
+  }
+};
+
+let current = 'E1-P2';
+
+/* ---------- render ---------- */
+function statusBadge(s){
+  const m={'Established':'b-est','Contested':'b-con','Gap':'b-gap','Adverse':'b-adv'};
+  return '<span class="badge '+(m[s]||'b-gap')+'">'+s+'</span>';
+}
+
+function renderSub(id){
+  const n=SUB[id];
+  const evHtml = n.ev.length ? n.ev.map(e=>`
+    <div class="ev ${e.cls}">
+      <div class="extitle">${e.ex}</div>
+      <div class="exq">${e.q}</div>
+      <div class="exmeta"><span>${e.ref}</span><span>${e.cls==='sup'?'Supportive':e.cls==='adv'?'Adverse':'Neutral'}</span></div>
+    </div>`).join('') : `<div class="empty">No exhibit mapped yet — this proposition is a <b>Gap</b>. Upload a bundle document or attach evidence to resolve it.</div>`;
+  document.getElementById('detail').innerHTML = `
+    <div class="dhead">
+      <div class="dlabel">${id} · ${n.el}</div>
+      <h3>${n.title}</h3>
+      ${statusBadge(n.status)}
+    </div>
+    <div class="dbody">
+      <div class="kv">Legal source</div>
+      <div style="font-size:14px;margin-bottom:6px">${n.source}</div>
+      <div class="mode-note"><b>Subsumption node.</b> Logic is <i>if&nbsp;A&nbsp;∧&nbsp;B&nbsp;then&nbsp;C</i>: the facts in the bundle are matched to the legal test, and the proposition’s status is <b>derived mechanically</b> from the classification of the exhibits mapped to it.</div>
+      <div class="section-h">Evidence from the bundle</div>
+      ${evHtml}
+      <div class="foothint">Supportive only → Established · any Adverse → Contested · none → Gap.</div>
+    </div>`;
+}
+
+function renderPond(){
+  const t=TESTS[ST.jur];
+  const stepsHtml = t.steps.map((s,i)=>{
+    const st=ST.steps[s.id];
+    const vClass={met:'sv-met',contested:'sv-con',unmet:'sv-unmet',open:'sv-open'}[st.verdict];
+    const vLabel={met:'Met',contested:'Contested',unmet:'Not met',open:'Open'}[st.verdict];
+    const chips = st.exhibits.map(x=>`<span class="evchip"><span class="dot sup"></span>${x}</span>`).join('');
+    const showEv = st.basis==='ev'||st.basis==='both';
+    const showArg = st.basis==='arg'||st.basis==='both';
+    return `
+    <div class="step ${s.id===ST.open?'open':''}" data-step="${s.id}">
+      <div class="shead" onclick="toggleStep('${s.id}')">
+        <span class="snum">${i+1}</span>
+        <span class="sname">${s.name}</span>
+        <span class="sverdict ${vClass}">${vLabel}</span>
+        <span class="caret">▶</span>
+      </div>
+      <div class="sbody">
+        <p class="shint">${s.hint}</p>
+        <div class="basis">
+          <button class="${st.basis==='ev'?'on':''}" onclick="setBasis('${s.id}','ev')">Evidence</button>
+          <button class="${st.basis==='arg'?'on':''}" onclick="setBasis('${s.id}','arg')">Argument</button>
+          <button class="${st.basis==='both'?'on':''}" onclick="setBasis('${s.id}','both')">Both</button>
+        </div>
+        ${showEv?`<div class="ev-slot"><div class="attached">${chips}</div><button class="addev" onclick="addEv('${s.id}')">+ attach exhibit from bundle</button></div>`:''}
+        ${showArg?`<div class="arg-slot"><textarea placeholder="Write the legal argument for this prong…" oninput="ST.steps['${s.id}'].arg=this.value">${st.arg}</textarea></div>`:''}
+        <div class="verdict-pick">
+          <button class="pick-met ${st.verdict==='met'?'on':''}" onclick="setVerdict('${s.id}','met')">Met</button>
+          <button class="pick-con ${st.verdict==='contested'?'on':''}" onclick="setVerdict('${s.id}','contested')">Contested</button>
+          <button class="pick-unmet ${st.verdict==='unmet'?'on':''}" onclick="setVerdict('${s.id}','unmet')">Not met</button>
+          <button class="pick-open ${st.verdict==='open'?'on':''}" onclick="setVerdict('${s.id}','open')">Open</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const nv = deriveVerdict();
+  document.getElementById('detail').innerHTML = `
+    <div class="dhead pond">
+      <div class="dlabel"><span class="scale">⚖</span> E1-P2 · Ponderation node</div>
+      <h3>Processing was unlawful — the legitimate-interests balancing fails</h3>
+      <span class="badge b-pond">Balancing · not subsumption</span>
+    </div>
+    <div class="dbody">
+      <div class="mode-note"><b>This node does not resolve by subsumption.</b> There is no single exhibit that proves it. The lawyer is guided through a <b>balancing sequence</b>; each prong can be backed by evidence, by natural-language argument, or both, and the node’s status is the <b>result of completing the test</b>.</div>
+
+      <div class="section-h">Principles / rights in conflict</div>
+      <div class="conflict">
+        <div class="side ctrl">
+          <div class="who">Controller</div>
+          <div class="pr">Freedom to conduct a business · legitimate interest in fraud prevention</div>
+          <div class="art">Art. 6(1)(f) GDPR · Art. 16 Charter</div>
+        </div>
+        <div class="vs">v.</div>
+        <div class="side subj">
+          <div class="who">Data subject</div>
+          <div class="pr">Protection of personal data · respect for private life</div>
+          <div class="art">Art. 8 &amp; 7 Charter · Art. 1 GDPR</div>
+        </div>
+      </div>
+
+      <div class="jur">
+        <label for="jursel">Test</label>
+        <select id="jursel" onchange="setJur(this.value)">
+          <option value="eu">EU proportionality (Charter / CJEU)</option>
+          <option value="de">German Verhältnismäßigkeit</option>
+          <option value="co">Juicio integrado (Colombia)</option>
+          <option value="echr">ECtHR — Art. 8(2) ECHR</option>
+        </select>
+      </div>
+      <div class="jurauth">${t.authority}</div>
+
+      <div class="section-h">Guided balancing sequence</div>
+      ${stepsHtml}
+
+      <div class="nodeverdict">
+        <div class="nvh">Derived node verdict</div>
+        <div class="nvtext">${nv.text}</div>
+        <div class="nvrule">${nv.rule}</div>
+      </div>
+      <div class="foothint">Switch the test above to see how the prongs — and the criteria — change across jurisdictions. The node carries the conflicting articles either way; only the test schema swaps.</div>
+    </div>`;
+  document.getElementById('jursel').value = ST.jur;
+}
+
+/* derive the node status from the prong verdicts */
+function deriveVerdict(){
+  const v = Object.values(ST.steps).map(s=>s.verdict);
+  let badge='Contested', cls='b-con', text, rule;
+  if(v.includes('unmet')){
+    badge='Established'; cls='b-est';
+    text='A prong fails for the controller → the legitimate-interests defence collapses → unlawful processing is made out. Proposition E1-P2 is Established for the claimant.';
+    rule='Rule: in a ponderation node the verdict propagates from the prongs, not from one exhibit. A single failed prong (here, necessity) can decide the whole node.';
+  } else if(v.includes('contested')||v.includes('open')){
+    badge='Contested'; cls='b-con';
+    text='Necessity is contested and the stricto-sensu balancing is still open (no weighing argument filed). The node is Contested — the claim turns on these two prongs.';
+    rule='Rule: the node stays Contested until every prong is resolved. The stricto-sensu prong typically holds argument, not an exhibit — it is the weighing itself.';
+  } else {
+    badge='Adverse'; cls='b-adv';
+    text='Every prong is met → the controller’s interest prevails → the processing was lawful. Proposition E1-P2 is not made out (adverse to the claim).';
+    rule='Rule: all prongs met means the balancing favours the controller — the opposite of a subsumption “all elements present”.';
+  }
+  // reflect onto the graph node badge
+  const gb=document.getElementById('graph-verdict-badge');
+  if(gb){gb.className='badge '+cls;gb.textContent=badge;}
+  const pn=document.querySelector('[data-node="E1-P2"]');
+  if(pn){pn.classList.remove('est','con','gap');pn.classList.add(badge==='Established'?'est':badge==='Adverse'?'gap':'con');}
+  return {text,rule};
+}
+
+/* ---------- interactions ---------- */
+function select(id){
+  current=id;
+  document.querySelectorAll('.node').forEach(n=>n.classList.toggle('sel', n.dataset.node===id));
+  if(id==='E1-P2') renderPond(); else renderSub(id);
+}
+function setJur(j){ ST.jur=j; ST.open=null; renderPond(); }
+function toggleStep(sid){ ST.open = (ST.open===sid?null:sid); renderPond(); }
+function setBasis(sid,b){ ST.steps[sid].basis=b; ST.open=sid; renderPond(); }
+function setVerdict(sid,v){ ST.steps[sid].verdict=v; ST.open=sid; renderPond(); }
+function addEv(sid){
+  const pool=['Exhibit 4 — Data-processing agreement','Exhibit 9 — Claimant’s expert report','Exhibit 12 — Privacy notice','Exhibit 5 — Internal DPIA'];
+  const cur=ST.steps[sid].exhibits;
+  const next=pool.find(p=>!cur.includes(p));
+  if(next){cur.push(next);ST.open=sid;renderPond();}
+}
+
+ST.open='nec';
+select('E1-P2');
+</script>
+</body>
+</html>
