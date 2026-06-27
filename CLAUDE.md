@@ -1323,6 +1323,38 @@ Once all backend routes (§7) are complete and both frontend mock and backend ar
 - ✅ Error handling: missing case → 404, bad job ID → 404, no auth → 403
 - ✅ API contracts match frontend types exactly (CaseSetup flow verified)
 
+**Document Pipeline (Hours 3–4) ✅ COMPLETE**
+- `app/services/pdf.py` — PyMuPDF text extraction
+  - `extract_text()` — opens PDF, extracts text from all pages, detects empty PDFs (scanned without OCR)
+- `app/services/readiness.py` — readiness score + status refresh logic
+  - `calculate_readiness()` — computes 0–100% from proposition statuses (Established=1.0, Contested=0.5, Gap=0.0)
+  - `refresh_proposition_status()` — auto-updates proposition status based on evidence (Established/Contested/Gap)
+  - `refresh_element_status()` — cascades status up from child propositions to parent element
+- `app/services/doc_analyser.py` — document analysis orchestrator
+  - `run_document_analysis()` — Claude analysis pipeline: evidence mapping → gap suggestion → save to DB → update readiness
+  - Saves evidence items with classification (Supportive/Adverse/Neutral)
+  - Deduplicates AI-suggested gaps by proposition
+  - Runs in BackgroundTasks with error handling
+- `app/routers/documents.py` — four document endpoints
+  - `POST /api/cases/{case_id}/documents` — upload PDF, extract text sync, create analysis job, return {document_id, job_id}
+  - `GET /api/cases/{case_id}/documents` — list all documents for a case
+  - `GET /api/documents/{document_id}` — get document detail with evidence items
+  - `DELETE /api/documents/{document_id}` — delete document + file from ./uploads/
+- Updated `app/schemas.py` with `DocumentUploadResponse`
+- Updated `app/main.py` to register documents router
+- Fixed Claude model ID to `claude-haiku-4-5-20251001` (API requirement)
+
+**Verified working (end-to-end tested with real PDF + Claude API):**
+- ✅ PDF text extraction: 25.5KB extracted from Art 82 GDPR evidence bundle
+- ✅ Claude document analysis: 13 evidence items + 4 gaps identified
+- ✅ Evidence saved to DB with classification (Supportive/Adverse/Neutral)
+- ✅ Proposition status auto-updated from Gap → Established when evidence added
+- ✅ Readiness score calculated correctly (25% = 1 established prop ÷ 4 total)
+- ✅ Empty PDF detection: ValueError raised for scanned PDFs without OCR
+- ✅ Document classification: Document type identified (Expert Report, Evidence Bundle, etc.)
+- ✅ File storage: Documents saved to ./uploads/{uuid}_{filename}, deleted on endpoint call
+- ✅ All routes registered: POST /documents, GET /documents, GET /documents/{id}, DELETE /documents/{id}
+
 **Frontend (clickable mock prototype — NOT yet integrated)**
 
 > ⚠️ **This frontend currently runs entirely on mock data. None of it is wired to the live backend yet.** It exists so we can visualise and click through the whole product flow before the endpoints exist. As each backend endpoint is built (§18), the corresponding mock must be replaced with the real call (see "go-live" steps below). Treat every screen as a UI contract to be validated against the real API, not as proven integration.
@@ -1352,6 +1384,7 @@ Once all backend routes (§7) are complete and both frontend mock and backend ar
 | Local Postgres has no `postgres` role | `DATABASE_URL` in `.env` uses `macbook` (the macOS username), not `postgres:postgres` |
 | `passlib[bcrypt]==1.7.4` incompatible with `bcrypt>=4.0` — crashes on `bcrypt.__about__` | `bcrypt==3.2.2` pinned explicitly in `requirements.txt` |
 | `TIMESTAMPTZ` not a valid SQLAlchemy dialect import | Replaced with `TS = DateTime(timezone=True)` alias in `models.py` |
+| CLAUDE.md specified `claude-3-5-haiku-20241022` which doesn't exist in API | Fixed to use `claude-haiku-4-5-20251001` (current valid Haiku model) |
 
 ---
 
@@ -1364,9 +1397,9 @@ Once all backend routes (§7) are complete and both frontend mock and backend ar
 | **1–1.5** | Cases CRUD | ✅ Done |
 | **1.5–2** | Jobs polling | ✅ Done |
 | **2–3** | CELLAR + Claude + articles endpoints | ✅ Done |
-| **3–4** | Document upload + PDF extraction + LLM analysis | 🔜 Next |
-| **4–4.5** | Graph CRUD + evidence + gaps | 🔜 Next |
-| **4.5–5** | Readiness + proposition status auto-update | 🔜 Next |
+| **3–4** | Document upload + PDF extraction + LLM analysis | ✅ Done |
+| **4–4.5** | Graph CRUD (elements, propositions, evidence, gaps) | 🔜 Next |
+| **4.5–5** | *Included above* | ✅ Done (readiness + status refresh) |
 | **5–7.5** | **Frontend integration** | 🔜 Next |
 | **7.5–8** | End-to-end test + blockers | 🔜 Next |
 
