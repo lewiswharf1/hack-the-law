@@ -9,7 +9,7 @@
   On "Build", the pipeline runs in the order the backend requires — the graph
   must exist before documents can be mapped to its propositions:
 
-    POST /api/cases/{id}/articles  -> { job_id }   (CELLAR fetch + Gemini build)
+    POST /api/cases/{id}/articles  -> { job_id }   (CELLAR fetch and graph build)
     poll GET /api/jobs/{id}         until "done"
     then, for each staged file:
       POST /api/cases/{id}/documents (multipart) -> { job_id }  (extract + analyse)
@@ -154,7 +154,7 @@ export default function CaseSetup() {
       <div className="mx-auto max-w-[600px] px-6 py-24 text-center">
         <Spinner label={status || "Setting up case…"} />
         <p className="mt-2 text-sm text-muted">
-          Building the Elements → Propositions structure with Gemini, then mapping
+          Building the Elements → Propositions structure, then mapping
           each uploaded document to the propositions it supports. This usually
           takes a few seconds.
         </p>

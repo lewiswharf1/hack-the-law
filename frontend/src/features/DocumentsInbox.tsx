@@ -4,7 +4,7 @@
   Backend:
     GET  /api/cases/{id}/documents            -> list
     POST /api/cases/{id}/documents (multipart)-> { document_id, job_id }
-         then poll GET /api/jobs/{id} until "done" (PDF extract + Gemini analysis
+         then poll GET /api/jobs/{id} until "done" (PDF extract and analysis
          that writes evidence + AI-suggested gaps and recalculates readiness).
 */
 import { useRef, useState } from "react"
