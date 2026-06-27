@@ -1,75 +1,47 @@
-# React + TypeScript + Vite
+# Scaffold — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + Tailwind v4 prototype for the Scaffold legal argument-graph tool.
+Built against `../CLAUDE.md` (spec) and `../DESIGN_SYSTEM.md` (visual design).
 
-Currently, two official plugins are available:
+## Running
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev      # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Login with the demo credentials (pre-filled): **admin / scaffold2026**.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Status: mock-backed prototype
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+The UI is fully clickable today **without a backend**. All data comes from an
+in-memory mock layer so you can visualise the whole flow:
 
 ```
+Login → Cases list → New case → Select GDPR articles → Build graph (polled)
+      → Case workspace: Overview · Argument Graph (+ evidence) · Documents
+        (upload + polled analysis) · Gaps (resolve / flag)
+```
+
+### Architecture
+
+| Path | Role |
+|---|---|
+| `src/api/client.ts` | **The only backend seam.** Exact `api.*` interface from CLAUDE.md §15.1, plus graph/document/evidence/gap methods. Mock-backed today; real `fetch` calls already present behind `USE_MOCKS`. |
+| `src/api/mockData.ts` | The fake dataset (a worked GDPR Art. 82 case). Deleted once live. |
+| `src/types/` | TS contracts mirroring the documented JSON shapes (CLAUDE.md §7). |
+| `src/components/` | Design-system primitives (Button, Card, badges, Modal, Spinner) + app shell. |
+| `src/pages/` | Routed screens: `Login`, `CasesList`, `CaseSetup`, `CaseWorkspace`. |
+| `src/features/` | Workspace tabs: `CaseOverview`, `ArgumentGraph`, `DocumentsInbox`, `GapsPanel`. |
+
+## Going live (when the FastAPI backend exists)
+
+1. Start the backend on `http://localhost:8000` (see `../backend`).
+2. Set `VITE_USE_MOCKS=false` (e.g. in a `.env` file), **or** flip the
+   `USE_MOCKS` default in `src/api/client.ts`.
+3. Every `api.*` method already contains the real request against the documented
+   route — no component changes needed. Then delete `src/api/mockData.ts` and the
+   mock branches in `client.ts`.
+
+Async operations (graph build, document analysis) already use the
+`pollUntilDone` helper from CLAUDE.md §15.1, polling `GET /api/jobs/{id}`.

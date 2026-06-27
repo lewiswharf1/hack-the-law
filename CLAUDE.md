@@ -1175,6 +1175,26 @@ Login credentials for demo: `admin` / `scaffold2026`
 
 **Verified working:** `POST /api/auth/login` returns a valid JWT. Server starts cleanly with `uvicorn app.main:app --port 8000`.
 
+**Frontend (clickable mock prototype — NOT yet integrated)**
+
+> ⚠️ **This frontend currently runs entirely on mock data. None of it is wired to the live backend yet.** It exists so we can visualise and click through the whole product flow before the endpoints exist. As each backend endpoint is built (§18), the corresponding mock must be replaced with the real call (see "go-live" steps below). Treat every screen as a UI contract to be validated against the real API, not as proven integration.
+
+- `frontend/` built with React + Vite + **Tailwind v4** (installed via `@tailwindcss/vite`) + `react-router-dom`. The earlier Vite starter (counter demo) has been removed.
+- Design tokens from `DESIGN_SYSTEM.md` are encoded as Tailwind theme variables in `src/index.css` (e.g. `bg-navy`, `text-primary`, `font-serif`).
+- **Single backend seam:** `src/api/client.ts` exposes the exact `api.*` interface from §15.1 **plus** the graph/document/evidence/gap methods from §7. Every method already contains the real `fetch` call against `http://localhost:8000/api`, gated behind a `USE_MOCKS` flag (default `true`, override with `VITE_USE_MOCKS=false`). Today each method returns from an in-memory store seeded by `src/api/mockData.ts` (a worked GDPR Art. 82 case), with simulated latency and job polling.
+- The mock layer **replicates backend rules** so the UI behaves correctly pre-integration: readiness calc (§8) and proposition/element status auto-update (§9) are mirrored in `client.ts`. These are demo stand-ins — the server remains the source of truth once live.
+- `src/types/` holds TS contracts mirroring the §7 JSON shapes (keep in sync with `app/schemas.py`).
+- Screens built and clickable end-to-end: `pages/Login.tsx` (auth gate, token in `localStorage`), `pages/CasesList.tsx`, `pages/CaseSetup.tsx` (article selection **+ litigation-bundle PDF upload** in one setup step → build graph, then analyse each document), `pages/CaseWorkspace.tsx` (tabs: Overview, Argument Graph + evidence side panel, Documents inbox + upload modal, Gaps). Feature tabs live in `src/features/`.
+- Async ops use the §15.1 `pollUntilDone` helper against `GET /api/jobs/{id}` (wrapped as an `awaitJob` promise in `CaseSetup.tsx` for sequencing build → analyse).
+- **Note:** file/component naming differs from §15's plan — logic is split into `pages/` (routed screens) and `features/` (workspace tabs) rather than flat files, and the API client is `src/api/client.ts` (not `src/api.ts`). `UploadModal` lives inside `features/DocumentsInbox.tsx`.
+- **Verified:** `tsc -b` clean, `eslint` clean, `vite build` succeeds (Tailwind tokens compile). Not yet verified in a real browser with screenshots, and **never tested against the real backend.**
+
+**Frontend go-live checklist (do this as endpoints land):**
+1. Start the backend on `http://localhost:8000`.
+2. Set `VITE_USE_MOCKS=false` (or flip the `USE_MOCKS` default in `client.ts`).
+3. For each newly-built endpoint, confirm the real response matches `src/types/` and the screen renders correctly; fix the type/UI on whichever side is wrong.
+4. Once all endpoints are live and validated, delete `src/api/mockData.ts` and the mock branches + mirrored-logic helpers (`recalcReadiness`, `refreshPropositionStatus`, `finaliseJob`) in `client.ts`.
+
 ---
 
 ### Known fixes applied (don't revert)
@@ -1197,9 +1217,8 @@ Login credentials for demo: `admin` / `scaffold2026`
 | **3–4** | Document upload + PDF extraction + LLM analysis | `app/services/pdf.py`, `app/services/doc_analyser.py`, `app/routers/documents.py` |
 | **4–4.5** | Graph CRUD + evidence + gaps | `app/routers/graph.py`, `app/routers/evidence.py`, `app/routers/gaps.py` |
 | **4.5–5** | Readiness + proposition status auto-update | `app/services/readiness.py` |
-| **5–6.5** | Frontend: `api.ts`, login gate, wire CaseSetup, CasesList, graph view | `frontend/src/api.ts`, `App.tsx`, `CaseSetup.tsx`, `CasesList.tsx` |
-| **6.5–7.5** | Frontend: wire document upload, CaseOverview stats | `UploadModal.tsx`, `CaseOverview.tsx` |
-| **7.5–8** | End-to-end test, fix blockers | — |
+| **5–7.5** | **Frontend integration** — the screens already exist as a mock prototype (see "What's done"). Work here is *replacing mocks with real calls*, not building UI: set `VITE_USE_MOCKS=false`, then validate each endpoint against `src/types/` as it comes online (auth → cases → articles/build → documents/analysis → graph/evidence/gaps). Fix contract mismatches on whichever side is wrong; delete `mockData.ts` + mock branches when done. | `frontend/src/api/client.ts`, `src/types/`, `pages/*`, `features/*` |
+| **7.5–8** | End-to-end test against the live backend, fix blockers | — |
 
 ---
 
