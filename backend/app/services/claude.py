@@ -126,7 +126,7 @@ def build_argument_graph(case_name: str, client_name: str, articles: list[dict],
         client=client_name,
     )
     response = client.messages.create(
-        model="claude-opus-4-1",
+        model="claude-haiku-4-5-20251001",
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -144,7 +144,7 @@ def analyse_document(doc_text: str, propositions: list[dict]) -> dict:
         propositions_json=json.dumps(propositions, indent=2),
     )
     response = client.messages.create(
-        model="claude-opus-4-1",
+        model="claude-haiku-4-5-20251001",
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}]
     )

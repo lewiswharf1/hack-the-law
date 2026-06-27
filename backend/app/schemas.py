@@ -143,6 +143,11 @@ class DocumentDetail(Document):
     evidence: list[Evidence]
 
 
+class DocumentUploadResponse(BaseModel):
+    document_id: UUID
+    job_id: UUID
+
+
 # --- Jobs ----------------------------------------------------------------
 
 class JobStatus(BaseModel):
