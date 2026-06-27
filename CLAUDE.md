@@ -1,5 +1,15 @@
 # Scaffold — Full Technical Specification
 
+## 0. Response Style
+
+When working on this project:
+
+- **No assumptions**: If requests are unclear, ask exhaustive clarifying questions before proceeding. Don't guess intent.
+- **Challenge weak ideas**: If plans or requirements seem underdeveloped, push back and ask for more detail or justification.
+- **Stay in scope**: Only do what's explicitly asked. Don't anticipate future needs, add "nice-to-haves," or refactor beyond the task. Ship exactly what was requested.
+
+---
+
 ## 1. Context & Goals
 
 **What this is:** A legal argument graph tool for EU data law litigation. A lawyer uploads a litigation bundle, selects EU regulation articles, and Scaffold uses Gemini to construct a structured argument graph (Elements → Propositions → Evidence). Documents are classified and mapped to propositions automatically.
