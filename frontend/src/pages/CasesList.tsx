@@ -131,7 +131,7 @@ export default function CasesList() {
         open={!!deleteConfirm}
         caseName={cases?.find((c) => c.id === deleteConfirm)?.short_name}
         onClose={() => setDeleteConfirm(null)}
-        onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
+        onConfirm={() => deleteConfirm ? handleDelete(deleteConfirm) : Promise.resolve()}
         loading={deleting}
       />
     </div>
